@@ -181,6 +181,7 @@ const Runner = {
   mount() {
     const $ = id => document.getElementById(id);
     this.dom = {
+      logCard: document.getElementById('log-card'),
       topicHeader: $('topic-header'), theoryBody: $('theory-body'), theoryCard: $('theory-body').parentElement,
       inputArea: $('input-area'), controlArea: $('control-area'), stepDesc: $('step-desc'),
       stage: $('stage'), logBox: $('log-box'),
@@ -194,6 +195,13 @@ const Runner = {
 
     // 日志清空
     $('log-clear').addEventListener('click', () => { this.dom.logBox.innerHTML = ''; });
+    // 专注模式：点击日志标题行切换折叠
+    const logHead = this.dom.logCard.querySelector('.bg-slate-50');
+    logHead.style.cursor = 'pointer';
+    logHead.addEventListener('click', () => {
+      if (!this.focusMode) return;
+      this.dom.logCard.classList.toggle('log-collapsed');
+    });
 
     // 专注模式（目录隐藏：左栏操作 / 右栏图像反馈）
     $('focus-toggle').addEventListener('click', () => this.toggleFocus());
@@ -430,6 +438,8 @@ const Runner = {
     move('stage', 'fp-stage');
     move('zoom-bar', 'fp-zoom');
     move('log-card', 'fp-log');
+    // 日志卡在专注模式下默认折叠为细条（仅标题行），点击标题可展开
+    $('log-card').classList.add('log-collapsed');
     // 隐藏目录与主区（理论卡 / 可视化卡 / 标题条都随主区隐藏）
     $('catalog-aside').style.display = 'none';   // 内联样式：覆盖 md:flex 等响应式类
     $('main-section').style.display = 'none';
@@ -448,6 +458,7 @@ const Runner = {
       const el = $(id);
       if (el) a.parent.insertBefore(el, a.next);   // 精确放回原位
     });
+    $('log-card').classList.remove('log-collapsed');
     $('catalog-aside').style.display = '';
     $('main-section').style.display = '';
     $('control-pane').style.display = 'none';
