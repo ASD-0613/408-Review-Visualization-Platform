@@ -152,7 +152,7 @@ RC408.books = [
         name: '第5章 中央处理器',
         topics: [
           { id: 'coa-datapath', hot: true, label: '数据通路与指令执行', status: 'wip', plan: '取指/译码/执行阶段数据流、控制信号逐个点亮' },
-          { id: 'coa-pipeline', hot: true, label: '五段流水线与冒险处理', status: 'wip', plan: '时空图单步推进、数据冒险气泡/转发、控制冒险（17年中8年考）' },
+          { id: 'coa-pipeline', hot: true, label: '五段流水线与冒险处理', status: 'ready' },
           { id: 'coa-interrupt', hot: true, label: '异常与中断机制', status: 'wip', plan: '中断隐指令、多重中断嵌套、fault/trap 辨析' },
           { id: 'coa-microprog', label: '微程序控制器', status: 'wip', plan: '微指令序列执行、下地址字段断定方式' },
           { id: 'coa-multi', label: '多处理器基本概念', status: 'theory', note: `> **真题考情**：2022-22 考 Flynn 分类与多核/SMP 辨析（考纲 2022 年新增本章）
@@ -264,7 +264,7 @@ RC408.books = [
         topics: [
           { id: 'net-crc', label: 'CRC 循环冗余校验', status: 'ready' },
           { id: 'net-hdlc', label: 'HDLC 组帧（广域网）', status: 'wip', legacy: '现行考纲广域网部分仅含 PPP，HDLC 已删；2013 年真题曾考零比特填充组帧。' },
-          { id: 'net-window', hot: true, label: '滑动窗口可靠传输（停等/GBN/SR）', status: 'wip', plan: '窗口滑动、超时重传、信道利用率与序号位数计算' },
+          { id: 'net-window', hot: true, label: '滑动窗口可靠传输（停等/GBN/SR）', status: 'ready' },
           { id: 'net-csma', hot: true, label: 'CSMA/CD 与最小帧长', status: 'wip', plan: '冲突传播动画、争用期与二进制指数退避' },
           { id: 'net-switch', label: '以太网交换机自学习', status: 'wip', plan: '转发表逐步建立、帧过滤/转发/泛洪判定' },
         ],
