@@ -1,0 +1,352 @@
+/* ============================================================================
+   style.css —— 考研408可视化平台 自定义样式
+   依赖 Tailwind（CDN）负责布局工具类；本文件负责：
+   ① 基础控件（按钮 / 表单 / 卡片）  ② 动画关键帧（闪烁 / 滑入 / 幽灵离场…）
+   ③ SVG 图元（Kruskal 边与节点）    ④ Markdown 正文排版  ⑤ 日志面板
+   ============================================================================ */
+
+/* ---------------- 基础 ---------------- */
+html { -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: transparent; }
+
+input[type="range"] { accent-color: #4f46e5; cursor: pointer; }
+
+/* ---------------- 卡片 ---------------- */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .05), 0 4px 14px rgba(15, 23, 42, .04);
+}
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: .65rem;
+  font-size: .85rem; font-weight: 600;
+  border: 1px solid #e2e8f0; background: #fff; color: #334155;
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: all .18s ease;
+}
+.btn:hover:not(:disabled) {
+  border-color: #a5b4fc; color: #4f46e5;
+  box-shadow: 0 3px 10px rgba(79, 70, 229, .14);
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.btn-primary { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #4338ca; color: #fff; }
+
+.btn-accent { background: #0284c7; border-color: #0284c7; color: #fff; }
+.btn-accent:hover:not(:disabled) { background: #0369a1; color: #fff; }
+
+.btn-success { background: #059669; border-color: #059669; color: #fff; }
+.btn-success:hover:not(:disabled) { background: #047857; color: #fff; }
+
+.btn-danger { background: #e11d48; border-color: #e11d48; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #be123c; color: #fff; }
+
+.btn-ghost { background: #f8fafc; }
+
+/* ---------------- 表单 ---------------- */
+.lbl { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+.help { font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.5; }
+.fld {
+  width: 100%; border: 1px solid #cbd5e1; border-radius: .6rem;
+  padding: .5rem .75rem; font-size: .875rem; background: #fff; color: #1e293b;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.fld:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); }
+textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+
+/* ---------------- 顶部 Tab ---------------- */
+.tab-btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .5rem .9rem; border-radius: .7rem; font-size: .85rem; font-weight: 600;
+  background: rgba(255,255,255,.08); color: #c7d2fe;
+  border: 1px solid transparent; cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.tab-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+.tab-active { background: #fff !important; color: #1e293b !important; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+.tab-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: rgba(99,102,241,.25); color: #e0e7ff;
+}
+.tab-active .tab-badge { background: #eef2ff; color: #4f46e5; }
+
+/* ---------------- 左侧目录项 ---------------- */
+.topic {
+  display: flex; align-items: center; gap: .55rem;
+  width: calc(100% - 16px); margin: 2px 8px; padding: .5rem .7rem;
+  border-radius: .6rem; font-size: .82rem; color: #475569;
+  cursor: pointer; border: none; background: transparent; text-align: left;
+  transition: background .15s, color .15s;
+}
+.topic:hover { background: #f1f5f9; }
+.topic-active { background: #eef2ff !important; color: #4338ca !important; font-weight: 700; }
+.topic .dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+.topic-wip { color: #94a3b8; }
+.topic-wip:hover { background: #f8fafc; }
+.wip-badge {
+  margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: #f1f5f9; color: #94a3b8; flex-shrink: 0;
+}
+
+/* ============================================================
+   动画关键帧
+   ============================================================ */
+
+/* 红色闪烁（LRU 缺页 / Cache 冲突 / Kruskal 成环），默认闪 2 次 */
+@keyframes cell-flash-red {
+  0%, 100% { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
+  50%      { background: #ef4444; border-color: #dc2626; color: #fff; }
+}
+.anim-flash-red { animation: cell-flash-red .5s ease-in-out 2; }
+
+/* 命中 / 接受：绿色光环扩散 */
+@keyframes ring-green {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.55); }
+  100% { box-shadow: 0 0 0 14px rgba(16,185,129,0); }
+}
+.anim-hit { animation: ring-green .8s ease-out 2; border-color: #10b981 !important; }
+
+/* 新元素平滑滑入（新页面进入物理块 / 新块装入 Cache） */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(16px) scale(.85); }
+  to   { opacity: 1; transform: none; }
+}
+.anim-slide-in { animation: slide-in .45s cubic-bezier(.2, .8, .3, 1) both; display: inline-block; }
+
+/* 幽灵离场：被换出的元素变红上飘消失 */
+@keyframes ghost-out {
+  0%   { opacity: .95; transform: translateY(0) scale(1); }
+  100% { opacity: 0;  transform: translateY(-16px) scale(.8); }
+}
+.ghost {
+  position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+  font-weight: 800; color: #e11d48; pointer-events: none; z-index: 5;
+  text-shadow: 0 1px 2px rgba(255,255,255,.9);
+}
+.anim-ghost-out { animation: ghost-out .9s ease-out both; }
+
+/* SVG：虚线数据流动（正在考察的边） */
+@keyframes dash-flow { to { stroke-dashoffset: -14; } }
+
+/* SVG：成环边红闪 2 次 */
+@keyframes edge-flash {
+  0%, 100% { stroke: #f87171; stroke-width: 6; opacity: 1; }
+  50%      { stroke: #ef4444; stroke-width: 9; opacity: .3; }
+}
+.kedge-flash { animation: edge-flash .4s ease-in-out 2; }
+
+/* SVG：新加入生成树的边弹跳加粗 */
+@keyframes edge-pop {
+  0%   { stroke-width: 3; opacity: .4; }
+  55%  { stroke-width: 10; opacity: 1; }
+  100% { stroke-width: 5; opacity: 1; }
+}
+.kedge-just { animation: edge-pop .7s ease-out both; }
+
+/* SVG：当前考察边两端节点光环 */
+@keyframes halo-pulse { 0%,100% { opacity: .9; } 50% { opacity: .25; } }
+.knode-halo { fill: none; stroke-width: 3; animation: halo-pulse 1s ease-in-out infinite; }
+
+/* 橙色提示脉冲（参数已修改） */
+@keyframes soft-blink { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+.anim-soft-blink { animation: soft-blink 1.4s ease-in-out infinite; }
+
+/* 尊重系统的"减少动态效果"偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------------- Kruskal SVG 图元 ---------------- */
+.kedge { stroke: #cbd5e1; stroke-width: 3; stroke-linecap: round; transition: stroke .4s, stroke-width .35s; }
+.kedge-mst { stroke: #10b981; stroke-width: 5; }
+.kedge-rejected { stroke: #cbd5e1; stroke-width: 2.5; stroke-dasharray: 5 6; opacity: .75; }
+.kedge-checking { stroke: #f59e0b; stroke-width: 6; stroke-dasharray: 9 6; animation: dash-flow .5s linear infinite; }
+
+.ew {
+  font: 700 13px Consolas, ui-monospace, monospace;
+  fill: #64748b; text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round;
+  transition: fill .3s; pointer-events: none;
+}
+.ew-mst { fill: #059669; }
+.ew-cur { fill: #d97706; }
+
+.knode-circle { stroke: #fff; stroke-width: 2.5; cursor: default; transition: fill .45s ease; filter: drop-shadow(0 2px 3px rgba(15,23,42,.18)); }
+.knode-text { font: 800 14px Consolas, ui-monospace, monospace; fill: #fff; text-anchor: middle; pointer-events: none; }
+
+/* ---------------- 二进制位格子（子网划分 / Cache 地址划分共用） ---------------- */
+.bit-cell {
+  width: 32px; height: 38px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 14px Consolas, ui-monospace, monospace; color: #fff;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.15);
+  transition: background .3s, transform .18s;
+}
+.bit-cell:hover { transform: translateY(-3px); }
+.bit-net  { background: #059669; }   /* 网络号：绿 */
+.bit-sub  { background: #e11d48; }   /* 子网号：红 */
+.bit-host { background: #2563eb; }   /* 主机号：蓝 */
+.bit-tag  { background: #d97706; }   /* Cache 标记位：琥珀 */
+.bit-idx  { background: #059669; }   /* Cache 行号：绿 */
+.bit-off  { background: #2563eb; }   /* Cache 块内偏移：蓝 */
+
+/* 物理块 / Cache 行 等"槽位"单元格 */
+.frame-cell {
+  position: relative; width: 76px; height: 76px;
+  border: 2px solid #e2e8f0; border-radius: 14px; background: #f8fafc;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: all .3s;
+}
+.frame-empty { border-style: dashed; color: #cbd5e1; font-size: 20px; }
+.page-num { font: 800 26px Consolas, ui-monospace, monospace; color: #334155; }
+.cell-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+/* ---------------- 小徽片（边序列 / 页面访问序列） ---------------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px; border: 1.5px solid #e2e8f0;
+  background: #fff; color: #64748b;
+  font: 600 12px Consolas, ui-monospace, monospace;
+  transition: all .25s;
+}
+.chip-mst  { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+.chip-rej  { background: #f1f5f9; border-color: #e2e8f0; color: #94a3b8; text-decoration: line-through; }
+.chip-check { border-color: #f59e0b; color: #b45309; background: #fffbeb; box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
+.chip-flash { background: #fee2e2; border-color: #f87171; color: #b91c1c; animation: cell-flash-red .5s ease-in-out 2; }
+.chip-fault { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+.chip-hit   { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+.chip-cur   { border-color: #6366f1; color: #4338ca; box-shadow: 0 0 0 3px rgba(99,102,241,.25); transform: scale(1.1); }
+.chip-future { background: #f8fafc; color: #cbd5e1; border-color: #f1f5f9; }
+
+/* ---------------- 数据表 ---------------- */
+.tbl { border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.tbl th, .tbl td {
+  border: 1px solid #e2e8f0; padding: 5px 10px;
+  text-align: center; white-space: nowrap; background: #fff;
+}
+.tbl th { background: #f8fafc; font-weight: 700; color: #475569; font-size: 11.5px; }
+.tbl .col-cur { background: #eef2ff !important; font-weight: 700; }
+.tbl .th-fault { background: #fee2e2; color: #b91c1c; }
+.tbl .th-hit { background: #d1fae5; color: #065f46; }
+.tbl .row-cur { background: #fffbeb !important; }
+.tbl .row-hit { background: #ecfdf5 !important; }
+
+/* ---------------- 日志面板 ---------------- */
+.log-box { background: #0f172a; }
+.log-line { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; color: #cbd5e1; }
+.log-idx { color: #475569; font-weight: 700; flex-shrink: 0; font-size: 10px; }
+.log-info    .log-msg { color: #cbd5e1; }
+.log-success .log-msg { color: #6ee7b7; }
+.log-warn    .log-msg { color: #fcd34d; }
+.log-error   .log-msg { color: #fda4af; }
+
+/* ---------------- 理论区 Markdown 排版 ---------------- */
+.md-body { font-size: 13.5px; line-height: 1.9; color: #475569; }
+.md-body h2 {
+  font-size: 16px; font-weight: 800; color: #1e293b; margin: 1.1em 0 .5em;
+  padding-left: .6rem; border-left: 4px solid #6366f1; line-height: 1.4;
+}
+.md-body h2:first-child { margin-top: 0; }
+.md-body h3 { font-size: 14px; font-weight: 700; color: #334155; margin: .9em 0 .4em; }
+.md-body p { margin: .45em 0; }
+.md-body ul, .md-body ol { padding-left: 1.4em; margin: .4em 0; }
+.md-body ul { list-style: disc; }
+.md-body ol { list-style: decimal; }
+.md-body li { margin: .2em 0; }
+.md-body li::marker { color: #818cf8; }
+.md-body strong { color: #1e293b; font-weight: 700; }
+.md-body code {
+  font-family: Consolas, ui-monospace, monospace; font-size: 12px;
+  background: #eef2ff; color: #4338ca; padding: 1px 6px; border-radius: 5px;
+}
+.md-body pre {
+  background: #0f172a; color: #e2e8f0; border-radius: .7rem;
+  padding: .9rem 1.1rem; overflow-x: auto; margin: .6em 0;
+  font-size: 12px; line-height: 1.7;
+}
+.md-body pre code { background: none; color: inherit; padding: 0; }
+.md-body blockquote {
+  border-left: 4px solid #f59e0b; background: #fffbeb;
+  padding: .5em .9em; border-radius: 0 .5rem .5rem 0; margin: .5em 0; color: #92400e;
+}
+.md-body table { border-collapse: collapse; margin: .6em 0; font-size: 12.5px; }
+.md-body th, .md-body td { border: 1px solid #e2e8f0; padding: 4px 12px; text-align: left; }
+.md-body th { background: #f8fafc; }
+.md-body hr { border: none; border-top: 1px dashed #e2e8f0; margin: 1em 0; }
+
+/* ---------------- 历年考察分布条（理论区顶部） ---------------- */
+.exam-strip {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem 0.6rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(180deg, #f8fafc, #fff);
+}
+.exam-strip-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.25rem; margin-bottom: 0.5rem; }
+.exam-strip-title { font: 800 12px/1.4 inherit; color: #334155; }
+.exam-strip-sub { font-size: 11px; color: #64748b; }
+.exam-strip-legend { font-size: 10px; color: #94a3b8; margin-left: auto; }
+.ex-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin: 0 3px 0 8px; vertical-align: -1px; border: 1px solid transparent; }
+.ex-cell {
+  width: 46px; padding: 3px 0 2px; margin: 0 2px 3px 0;
+  border-radius: 8px; text-align: center; border: 1px solid transparent;
+  transition: transform .15s, box-shadow .15s;
+}
+.ex-cell:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(15,23,42,.12); }
+.ex-y { font: 800 12px Consolas, ui-monospace, monospace; }
+.ex-n { font: 700 9px Consolas, ui-monospace, monospace; margin-top: 1px; white-space: nowrap; }
+.ex-off { background: #f1f5f9; color: #cbd5e1; }
+.ex-sel { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
+.ex-sel .ex-n { color: #0369a1; }
+.ex-big { background: #ffe4e6; border-color: #fda4af; color: #9f1239; }
+.ex-big .ex-n { color: #be123c; }
+.ex-off-d { background: #f1f5f9; }
+
+/* ---------------- 展示区缩放工具 ---------------- */
+.zoom-btn {
+  width: 26px; height: 26px; border-radius: 7px; line-height: 1;
+  font: 800 14px Consolas, ui-monospace, monospace; color: #475569;
+  background: #fff; border: 1px solid #e2e8f0; cursor: pointer;
+  transition: all .15s;
+}
+.zoom-btn:hover { color: #4f46e5; border-color: #a5b4fc; }
+.zoom-val {
+  min-width: 48px; height: 26px; padding: 0 6px; border-radius: 7px;
+  font: 700 11px Consolas, ui-monospace, monospace; color: #475569;
+  background: #fff; border: 1px solid #e2e8f0; cursor: pointer;
+}
+.zoom-val:hover { color: #4f46e5; border-color: #a5b4fc; }
+
+/* ---------------- 主存单元格子（寻址方式 / 虚拟内存共用） ---------------- */
+.mem-cell {
+  position: relative; width: 62px; height: 54px;
+  border: 1.5px solid #e2e8f0; border-radius: 9px; background: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: all .3s;
+}
+.mem-addr { font: 600 9px Consolas, ui-monospace, monospace; color: #94a3b8; line-height: 1.1; }
+.mem-val  { font: 800 15px Consolas, ui-monospace, monospace; color: #334155; line-height: 1.2; }
+.mem-a    { border-color: #f59e0b; background: #fffbeb; }          /* 形式地址指向 */
+.mem-mid  { border-color: #fb923c; background: #ffedd5; }          /* 间接寻址中间单元 */
+.mem-ea   { border-color: #10b981; background: #ecfdf5; }          /* 有效地址单元 */
+.mem-op   { border-color: #059669; background: #d1fae5; }          /* 操作数所在 */
+
+/* 寄存器徽片 */
+.reg-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 4px 12px; border-radius: 9px; border: 1.5px solid #e2e8f0;
+  background: #f8fafc; transition: all .25s;
+}
+.reg-chip .reg-name { font: 700 11px Consolas, ui-monospace, monospace; color: #64748b; }
+.reg-chip .reg-num  { font: 800 15px Consolas, ui-monospace, monospace; color: #1e293b; }
+.reg-chip-hot { border-color: #f59e0b; background: #fffbeb; box-shadow: 0 0 0 3px rgba(245,158,11,.18); }
+.reg-chip-acc { border-color: #10b981; background: #ecfdf5; }
