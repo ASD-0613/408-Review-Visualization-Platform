@@ -11,5 +11,13 @@ Thumbs.db
 *.log
 _tmp_kg/
 fix-tmp*.js
+tmp_smoke*.js
 hot-reset*.js
 log-collapse.js
+
+# 一次性排查/自检脚本与产物（用完即删；tmp_dfs_bfs_audit.md 为图遍历考情核对报告，留档备查）
+tmp_*
+
+# 真题考情缓存（tools/exam_index.py 生成：全文 txt + 关键词索引 + 扫描页 PNG）
+# 含解析原文，属版权内容，不入公开仓库；本地随时可用 --build 重建
+考情缓存/
