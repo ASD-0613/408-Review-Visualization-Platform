@@ -1,8 +1,8 @@
 'use strict';
 /* ============================================================================
- * ds-sort.js —— 【数据结构】排序算法全家桶（插入/冒泡/选择/快排/堆排/归并）
+ * ds-sort.js —— 【数据结构】排序算法全家桶（插入/希尔/冒泡/选择/快排/堆排/归并）
  * ----------------------------------------------------------------------------
- * 真题考情：17 年真题**每年必考 1~2 题**（累计 25+ 题），固定套路：
+ * 真题考情：2009–2026 共 18 年真题**每年必考 1~3 题**（exam-history 核实 18/18），固定套路：
  *   ① "给第 k 趟排序结果反推算法"（09/10/12/14/15/18/23/24/25…）；
  *   ② 算法性质辨析（比较次数/移动次数/稳定性/是否每趟确定一个最终位置）。
  * 本模块的"每趟结果表"即针对 ① 训练。
@@ -12,6 +12,8 @@
  *     arr       当前数组状态副本
  *     hi        本帧高亮的下标（比较对等）
  *     touched   本帧被写动的下标
+ *     hole     快排"挖坑法"空位下标（pivotVal = 已取出的枢轴值）
+ *     gap      希尔排序当前增量（分组标签渲染依据）
  *     sorted    已确定最终位置的下标（绿色）
  *     pivot     快排当前枢轴下标
  *     range     快排/归并当前工作区间 [lo,hi]
@@ -22,6 +24,7 @@
 /* 各算法的复杂度与稳定性（渲染统计卡用） */
 const _SORT_META = {
   insertion: { name: '直接插入排序', cmp: 'O(n²)', stable: '稳定', best: '基本有序时 O(n)——真题高频辨析' },
+  shell: { name: '希尔排序', cmp: '约 O(n^1.3)，依赖增量序列', stable: '不稳定', best: '组内排序是直接插入（2015 真题）；基本有序时效率高' },
   bubble: { name: '冒泡排序', cmp: 'O(n²)', stable: '稳定', best: '可提前终止（本趟无交换即有序）' },
   selection: { name: '简单选择排序', cmp: 'O(n²)', stable: '不稳定', best: '移动次数最少（最多 n−1 次）——2025 真题' },
   quick: { name: '快速排序', cmp: '平均 O(nlog₂n)', stable: '不稳定', best: '每趟确定一个元素的最终位置' },
@@ -35,20 +38,28 @@ RC408.registerModule({
   title: '排序算法全家桶（逐动作 + 每趟结果）',
 
   theory: `
-> **真题考情**：17 年真题**每年必考**（累计 25+ 题）。最高频套路是
-> **"给出第 1、2 趟后的序列，反推是哪种排序"**（09/10/12/14/18/23/25 年均考），
+> **真题考情**：2009–2026 共 18 年真题**每年必考 1~3 题**（exam-history 核实 18/18，排序是全卷最高频考点）。
+> 最高频套路是**"给出第 1、2 趟后的序列，反推是哪种排序"**（09/10/12/14/18/23/25 年均考），
 > 其次是性质辨析：稳定性、比较/移动次数、能否每趟确定一个最终位置。
 > 另注：2021 年大题曾考"计数排序"的代码分析——计数排序**不在考纲排序列表内**，属阅读代码类题目，掌握思想即可。
 
-## 六种排序的"一趟"特征（反推算法的钥匙）
+## 七种排序的"一趟"特征（反推算法的钥匙）
 | 算法 | 一趟之后能保证什么 | 稳定性 |
 | --- | --- | --- |
 | 直接插入 | 前 i+1 个元素**局部有序**（但位置未必最终） | 稳定 |
+| 希尔（缩小增量） | 第 k 趟后**各增量组内**有序，整体"基本有序"，**无元素保证最终位置**（最后一趟 d=1 除外） | 不稳定 |
 | 冒泡 | 每趟冒出一个**最大值到最终位置**（末尾有序区+1） | 稳定 |
 | 简单选择 | 每趟选出最小值放到**最终位置**（头部有序区+1） | 不稳定 |
 | 快速排序 | 每趟**枢轴归位**（左侧均≤枢轴、右侧均≥枢轴） | 不稳定 |
 | 堆排序 | 每趟取出堆顶放末尾（尾部有序区+1） | 不稳定 |
 | 二路归并 | 第 k 趟后所有**长度 2ᵏ 的段内有序** | 稳定 |
+
+## 希尔排序（缩小增量排序）
+- **思想**：先取增量 \\(d_1=\\lfloor n/2 \\rfloor\\)，把全部元素分成 \\(d_1\\) 组（所有下标模 \\(d_1\\) 同余的为一组），各组内做**直接插入排序**；再取 \\(d_2=\\lfloor d_1/2 \\rfloor\\) 重复……直到 \\(d=1\\)。
+- **最后一趟 \\(d=1\\)** 就是普通直接插入排序——前面的趟都是为了把序列调整得"基本有序"，让最后一趟少移动。这也解释了为什么希尔对**基本有序**的序列效率高。
+- **反推特征**：中途某趟后序列**整体只是基本有序**（大体从小到大但局部有逆序），且没有元素位于最终位置——看到这种"半有序"中间结果，选希尔；看到"前若干个已排好"，才是插入/冒泡/选择。
+- **性质**：仅适用于**顺序存储**（需要随机访问下标 i±d）；**不稳定**（相等元素若分在不同组，相对次序可能改变——"希选快堆"之一）；组内排序方式是**直接插入**（2015 真题辨析点）。
+- **复杂度**：依赖增量序列，教材口径约 \\(O(n^{1.3})\\)，最坏 \\(O(n^2)\\)；空间 \\(O(1)\\)。
 
 ## 高频辨析结论
 - **移动次数与初始序列无关**：简单选择、基数排序（2015 真题）；
@@ -59,6 +70,7 @@ RC408.registerModule({
 
 ## 本模块的观察要点
 - 单步看每个"比较→移动"决策；重点看**每趟结果表**，考场上靠它反推算法；
+- 希尔观察**分组标签**（同色同组）：同一增量下各组分别插入，下一趟增量减半重新分组；
 - 快排观察枢轴的归位过程：绿色下标 = 已确定最终位置的元素。
 `,
 
@@ -101,6 +113,7 @@ RC408.registerModule({
       type, arr: [...a],
       hi: [], touched: [], sorted: [...sorted], range: null,
       hole: null, pivotVal: null,          // 快排"挖坑法"：空位下标 + 已取出的枢轴值
+      gap: null,                           // 希尔排序当前增量（null = 非希尔帧）
       stats: { ...st }, passes: passes.map(p => ({ label: p.label, arr: [...p.arr] })),
       passName: passes.length ? passes[passes.length - 1].label : '尚未完成任何一趟',
       log: '', desc: '', ...extra,
@@ -132,6 +145,36 @@ RC408.registerModule({
         snap('move', { touched: [j + 1], log: `${key} 插入到位置 ${j + 1}`, desc: `${key} 插入位置 ${j + 1}` });
         passEnd(`第 ${i} 趟（插入 ${key}）`, `第 ${i} 趟完成：前 ${i + 1} 个元素局部有序`);
       }
+    }
+
+    if (algo === 'shell') {
+      /* 增量序列（王道教材口径）：d1=⌊n/2⌋，之后逐趟减半，最后一趟 d=1。
+         每趟 = 当前增量下全部分组各做一次组内直接插入；组内元素下标 g, g+d, g+2d, … */
+      const gaps = [];
+      for (let d = Math.floor(n0 / 2); d > 0; d = Math.floor(d / 2)) gaps.push(d);
+      gaps.forEach((d, gi) => {
+        snap('compare', { gap: d, log: `第 ${gi + 1} 趟开始：增量 d=${d}，分成 ${d} 组（图中同色同组），各组内进行直接插入排序${d === 1 ? '。d=1 即普通直接插入，保证最终有序' : ''}`, desc: `第 ${gi + 1} 趟：增量 d=${d}，分 ${d} 组` });
+        for (let g = 0; g < d; g++) {
+          for (let i = g + d; i < n0; i += d) {
+            const key = a[i];
+            snap('compare', { gap: d, hi: [i], log: `组 ${g + 1}：取出 a[${i}] = ${key}，在组内（下标差 ${d} 的元素间）向前寻找插入位置`, desc: `d=${d}：组 ${g + 1} 插入 ${key}` });
+            let j = i - d;
+            while (j >= 0) {
+              st.compares++;
+              snap('compare', { gap: d, hi: [j], log: `比较同组前驱 a[${j}] = ${a[j]} 与待插入值 ${key}：${a[j] > key ? '大于 → 组内后移 d 位' : '不大于 → 找到插入位置'}`, desc: `比较 ${a[j]} 与 ${key}（同组）` });
+              if (a[j] <= key) break;
+              a[j + d] = a[j]; st.moves++;
+              snap('move', { gap: d, touched: [j + d], log: `a[${j}] = ${a[j]} 组内后移 ${d} 位到 a[${j + d}]`, desc: `${a[j]} 后移 ${d} 位` });
+              j -= d;
+            }
+            if (j + d !== i) {
+              a[j + d] = key; st.moves++;
+              snap('move', { gap: d, touched: [j + d], log: `${key} 插入到 a[${j + d}]（组 ${g + 1} 内的位置）`, desc: `${key} 插入 a[${j + d}]` });
+            }
+          }
+        }
+        passEnd(`第 ${gi + 1} 趟（增量 d=${d}）`, `增量 ${d} 的一趟完成：各组内局部有序，整体更接近有序${d === 1 ? '，且 d=1 后整体有序' : ''}`);
+      });
     }
 
     if (algo === 'bubble') {
@@ -268,7 +311,7 @@ RC408.registerModule({
     const n = s.arr.length;
     const meta = _SORT_META[model.algo];
     const maxV = Math.max(...s.arr, 10);
-    const W = n * 48 + 30, H = 250;
+    const W = n * 48 + 30, H = s.gap ? 266 : 250;
     const barW = 34, gap = 14;
 
     /* 柱状图 + 数值（快排挖坑法：空位画虚线框） */
@@ -299,6 +342,16 @@ RC408.registerModule({
 
     const rangeNote = s.range ? `<text x="${20 + s.range[0] * (barW + gap)}" y="242" style="font:700 11px sans-serif" fill="#6366f1">↳ 当前工作区间 [${s.range[0]}, ${s.range[1]}]</text>` : '';
 
+    /* 希尔排序：当前增量下的分组标签（同色同组，组内做直接插入） */
+    const GROUP_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#84cc16'];
+    const groupTags = s.gap ? s.arr.map((v, i) => {
+      const x = 20 + i * (barW + gap);
+      const gid = i % s.gap;
+      const c = GROUP_COLORS[gid % GROUP_COLORS.length];
+      return `<rect x="${x}" y="230" width="${barW}" height="15" rx="4" fill="${c}" opacity="0.14"/>
+        <text x="${x + barW / 2}" y="241" text-anchor="middle" style="font:700 9px sans-serif" fill="${c}">组${gid + 1}</text>`;
+    }).join('') : '';
+
     /* 每趟结果表（真题反推训练） */
     const passRows = s.passes.map((p, i) => `
       <tr class="${i === s.passes.length - 1 && s.type === 'pass' ? 'row-cur' : ''}">
@@ -325,7 +378,7 @@ RC408.registerModule({
 
         <div class="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-2 overflow-x-auto">
           <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto mx-auto" style="max-width:${Math.max(W, 520)}px">
-            ${bars}${rangeNote}
+            ${bars}${rangeNote}${groupTags}
           </svg>
         </div>
 
@@ -341,12 +394,13 @@ RC408.registerModule({
           ${RC408.ui.legend('#f59e0b', '正在比较')}
           ${RC408.ui.legend('#f43f5e', '本帧被移动/交换')}
           ${RC408.ui.legend('#6366f1', '空位（枢轴已取出暂存）')}
-          ${RC408.ui.legend('#10b981', '已确定最终位置')}
+          ${s.gap ? RC408.ui.legend('#10b981', '组标签：当前增量 d 的分组（同色同组，组内直接插入）<br>——每完成一趟，增量减半重新分组') : RC408.ui.legend('#10b981', '已确定最终位置')}
         </div>
 
         <div class="rounded-xl bg-indigo-50/70 border border-indigo-100 px-4 py-2.5 text-xs text-indigo-900 leading-relaxed">
           💡 <b>考点提醒：</b>${meta.best}。用"每趟结果表"练习反推：冒泡/选择/堆排每趟确定一个最终位置（绿色），
-          快排每趟枢轴归位，归并第 k 趟段长 2ᵏ，插入只有前缀局部有序。
+          快排每趟枢轴归位，归并第 k 趟段长 2ᵏ，插入只有前缀局部有序，
+          ${s.gap ? '希尔中途<b>没有任何元素位于最终位置</b>（整体只是基本有序）——这正是它区别于其他算法的反推特征。' : '希尔中途则无元素保证最终位置。'}
         </div>
       </div>`;
   },

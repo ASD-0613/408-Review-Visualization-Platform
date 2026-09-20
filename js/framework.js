@@ -265,6 +265,7 @@ const Runner = {
       this.dom.inputArea.innerHTML = '';
       this.dom.controlArea.innerHTML = '';
       this.dom.controlArea.classList.remove('hidden');
+      document.getElementById('viz-card').classList.remove('hidden');   // 从纯理论页切到建设中/考纲外页时同样恢复（占位页画在 stage 里）
       this.dom.stepDesc.classList.add('hidden');
       this.dom.stage.innerHTML = legacy
         ? `<div class="rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50/50 p-10 text-center">
@@ -295,6 +296,7 @@ const Runner = {
     this.dom.logBox.innerHTML = '';
     this.dom.stepDesc.classList.add('hidden');
     this.dom.stepDesc.innerHTML = '';
+    document.getElementById('viz-card').classList.remove('hidden');   // 从纯理论页切回时恢复交互卡
     this.renderInputs();
     this.renderControls();
     this.syncTopicSelect();
