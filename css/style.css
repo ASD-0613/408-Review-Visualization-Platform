@@ -354,3 +354,23 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 /* ---------------- 专注模式：日志卡折叠为细条 ---------------- */
 #log-card.log-collapsed .log-box { display: none; }
 #log-card.log-collapsed .bg-slate-50 { cursor: pointer; }
+
+/* ---------------- 滑动窗口：信道帧传输动画 ---------------- */
+.sw-channel { stroke: #cbd5e1; stroke-width: 2.5; stroke-dasharray: 8 5; }
+.sw-host { font: 800 11px sans-serif; fill: #475569; }
+.sw-frame-g { animation: sw-travel 0.85s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+.sw-frame-g.sw-lost { animation: sw-drop 0.85s ease-in forwards; }
+.sw-frame-g.sw-ack { animation: sw-ack-travel 0.85s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+@keyframes sw-travel {
+  from { transform: translateX(0); }
+  to   { transform: translateX(var(--tx)); }
+}
+@keyframes sw-drop {
+  0%   { transform: translateX(0); opacity: 1; }
+  50%  { transform: translateX(calc(var(--tx) * 0.55)); opacity: 1; }
+  100% { transform: translate(calc(var(--tx) * 0.55), 30px); opacity: 0; }
+}
+@keyframes sw-ack-travel {
+  from { transform: translateX(var(--tx)); }
+  to   { transform: translateX(0); }
+}
