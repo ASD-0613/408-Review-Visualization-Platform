@@ -694,9 +694,14 @@ RC408.renderMath = function (el) {
   if (!el || !window.renderMathInElement) return;
   try {
     renderMathInElement(el, {
+      // ⚠ 定界符必须是**转义反斜杠**：'\\(' 才是「反斜杠 + 左括号」这两个字符。
+      //   窗10 前写的是 '\('，JS 里无效转义会退化成裸 '(' → KaTeX 实际以「裸括号」为定界符，
+      //   于是把括号里的内容当公式、并**把 \log \lfloor \ge 这些反斜杠命令原样吐出来**
+      //   （用户截图里的 `\BF(z=+2) 且 \BF(y\ge 0)`、`\lfloor i/2 \rfloor` 就是这个 bug）。
+      //   '\\(' 才能让 KaTeX 正常吃掉 \log / \lfloor 等命令。
       delimiters: [
-        { left: '$', right: '$', display: true },
-        { left: '\(', right: '\)', display: false },
+        { left: '$$', right: '$$', display: true },
+        { left: '\\(', right: '\\)', display: false },
       ],
       throwOnError: false,
     });
