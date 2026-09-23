@@ -18,6 +18,11 @@ doc_check.py —— handover / README 里的"与代码绑定的数字"一致性�
 窗13 新增第 12 项"handover 自述数字/过时措辞"（**只扫"当前状态区"**：§0 / §3.5 / §3.8 /
 §6.2.<最大序号> / §6.5 / §6.6 最上一行 / §7；**历史节按设计豁免**）——
 它顺带把"theory 文案体检"的真实进度从模块文件现算出来打印（当前状态不再靠人肉维护）。
+窗13 另新增第 13 项"handover 排版硬约束"（§8.6）、第 14 项"度量衡"（§8.8）；
+**窗17 新增第 15 项"skill ↔ handover 一致性"**（四条子判据 (a)–(d)，防 `.dsh/skills/408-handover/`
+随 handover 漂移）——它上线前做过注入自测（`node tmp_t17_skill_selftest.js`）。
+**窗20 修第 1 项的"建设中条数"**：原判据 `建设中 (\\d+)` 取首个命中 = §3.5-13 的历史举例（§3.8-17① 复发），
+现锚到 §5 的当前值行 `96 条目 = ready N / 纯理论 N / 建设中 N`。
 ================================================================================
 """
 import argparse
@@ -45,6 +50,21 @@ def read(rel):
         return f.read()
 
 
+def _in_code_span(text, start, end):
+    """判断 text[start:end] 是否落在**被反引号包住的引用样例**里（窗18 新增）。
+
+    做法：向左找最近的 ` 与换行，若先遇到 ` 则"已开"; 再看 [end, end+24] 内是否有 ` 闭合。
+    用途：§6.2.N 的历史叙述里常**原样引用当时的字样**（如 `` `静态资源版本：**v=53**` ``、
+    `` `v=49 → 50` ``），它们不是"当前值"；不排除就会把检查器永久钉在旧值上（窗18 实测）。
+    """
+    head = text[:start]
+    nl = max(head.rfind('\n'), head.rfind('|'))
+    seg = head[nl + 1:]
+    if seg.count('`') % 2 == 0:
+        return False
+    return '`' in text[end:end + 24]
+
+
 def measure():
     app = read('js/app.js')
     eh = read('js/exam-history.js')
@@ -70,7 +90,12 @@ CHECKS = [
     ('handover：已实现模块数（§4.4）', 'module_files', 'docs/handover.md', r'已实现模块清单（(\d+) 个', True),
     ('handover：app.js 条目数', 'app_ids', 'docs/handover.md', r'目录树（对齐 2026 考纲，(\d+) 条目', True),
     ('handover：理论速记卡数（§4.5）', 'theory', 'docs/handover.md', r'理论速记卡（\*\*(\d+) 个\*\*', True),
-    ('handover：建设中条数', 'wip', 'docs/handover.md', r'建设中 (\d+)', False),
+    # ⚠ 窗20 修（§3.8-17 第①种判据失效，第五次复发）：原判据是裸的 `建设中 (\d+)`，
+    #   而 `re.search` 取**首个**命中 ⟹ 它一直读的是 §3.5-13 里那句**历史举例**
+    #   （"窗8 收尾时：…建设中 15…"）。窗20 该值 15 → 14，判据随即报红，会逼下一窗去篡改历史举例。
+    #   对策：把判据锚到 §5 结构块里那条**唯一的当前值行**（`96 条目 = ready N / 纯理论 N / 建设中 N`），
+    #   历史散文里的旧值不再命中（与窗18 修 version 那条同源）。
+    ('handover：建设中条数', 'wip', 'docs/handover.md', r'96 条目 = ready \d+ / 纯理论 \d+ / 建设中 (\d+)', True),
     ('handover：火苗 hot 数（§1.5）', 'hot', 'docs/handover.md', r'`hot:true` 实测 \*\*(\d+)\*\*', True),
     ('handover：静态资源版本（§6.4）', 'version', 'docs/handover.md', r'静态资源版本：\*\*v=(\d+)\*\*', True),
     ('README：已实现模块总览', 'module_files', 'README.md', r'已实现模块总览（(\d+) 个', True),
@@ -246,6 +271,10 @@ def handover_selfcheck(version, totals, done):
             if num != real:
                 probs.append('%s：`%s` 剩 %d 个，实测未做 %d 个（共 %d）' % (rname, book, num, real, totals.get(book, 0)))
         for m in re.finditer(r'v=(\d+)\s*→\s*(\d+)', rtext):
+            # 窗18：同样跳过**代码跨度里的引用样例**（如本窗 §6.2.16 引用 t13 自测的旧锚点
+            # `` `v=49 → 50` ``）——那是历史叙述，不是"当前版本"。
+            if _in_code_span(rtext, m.start(), m.end()):
+                continue
             if int(m.group(2)) != int(version):
                 probs.append('%s：写 `v=%s → %s`，当前静态资源实际是 v=%s' % (rname, m.group(1), m.group(2), version))
         if '三模式' in rtext or '三个模式' in rtext:
@@ -343,6 +372,149 @@ def wording_check():
     return probs
 
 
+def _table_first_col(text):
+    """取一段文本里**第一张表**的首列（只认 `1` / `8b` 这种行号格）。
+
+    用来比对"skill 的八闸门表 ↔ handover §3.5.0 的表"：两边的行数与编号必须一样。
+    兼容 table 前带 `> ` 的引用块（handover §3.5.0 的表就是写在 `> ` 里的）。
+    """
+    out = []
+    for line in text.split('\n'):
+        s = line.lstrip()
+        if s.startswith('>'):
+            s = s[1:].lstrip()
+        if not s.startswith('|'):
+            if out:
+                break
+            continue
+        cells = s.strip().strip('|').split('|')
+        head = cells[0].strip().strip('*').strip()
+        if re.match(r'^\d+[a-z]?$', head):
+            out.append(head)
+        elif out:
+            break
+    return out
+
+
+def _md_sections(lines):
+    """`{'3.5.0': (起始行, 结束行)}`——节号取 `##`~`####` 标题里的数字（如 `#### 3.5.0 …`）。
+
+    ⚠ 结束行取"**下一个不是自己子节**的标题"：`§3.5` 的编号条目 1–25 夹在 `#### 3.5.0`
+    后面（窗16 搬家后的结构），若按"下一个标题"切，`§3.5` 的区间会在 `#### 3.5.0` 处截断，
+    于是 `§3.5-9 / -16 / -18` 这些**真实存在**的引用会被判成"找不到"（窗17 上线当天实测到的误报——
+    与 §3.8-17④ 同类：判据只认了一种结构）。判据：子节号必须以 `父节号 + '.'` 开头。
+    """
+    heads = []
+    for i, l in enumerate(lines):
+        m = re.match(r'^#{2,4}\s+(\d+(?:\.\d+)*)\s', l)
+        if m:
+            heads.append((m.group(1), i))
+    out = {}
+    for k, (sid, i) in enumerate(heads):
+        end = len(lines)
+        for sid2, j in heads[k + 1:]:
+            if not sid2.startswith(sid + '.'):
+                end = j
+                break
+        if sid not in out:
+            out[sid] = (i, end)
+    return out
+
+
+def _item_present(sect_text, n):
+    """节内有没有编号条目 `n.`（编号条目行 `18. **…` 或表首列 `> | 18 | …` 两种写法）。"""
+    pats = (r'(?m)^\s{0,3}%d\.\s' % n,
+            r'(?m)^\s*>?\s*\|\s*\*{0,2}%d\*{0,2}\s*\|' % n)
+    return any(re.search(p, sect_text) for p in pats)
+
+
+CATALOG_DESC_MAX = 500      # DSH `dsh-tool-skill` 的 `DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH`
+SKILL_REL = os.path.join('.dsh', 'skills', '408-handover')
+
+
+def skill_handover_check():
+    """窗17 新增（第 15 项）：**skill ↔ handover 一致性**（四条子判据）。
+
+    背景（§6.2.14⑨ 自己记的缺口）：窗16 把"窗口规程"立成 skill `.dsh/skills/408-handover/SKILL.md`，
+    但 `doc_check` 只管 handover / README ⟹ **skill 随 handover 漂移没有任何机器判据**：
+    闸门表改了 skill 没改、skill 指向已删的节号、skill 提到的脚本被收尾删掉——都没人发现。
+    本项把 §6.2.14⑩② 的四条落地（每条都能机器做）：
+      (a) frontmatter：必填字段齐、`name` 与目录名一致、`description` 长度在目录上限内
+          （上限 500 来自 DSH 的 `DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH`，超了会被截断成 `…`，见 §7）；
+      (b) skill 的"八闸门"表首列（行数 + 编号顺序）**必须等于** handover `§3.5.0` 那张表；
+      (c) skill（含 `references/` 与 `scripts/`）里引用的每个 `§x.y-N` 都能在 handover 里解析到；
+      (d) skill 里提到的每个 `tmp_*` 文件都真实存在（防收尾按"引用 0 次"清理时把 skill 的模板删掉）。
+    ⚠ **判据自身做过注入自测**：`node tmp_t17_skill_selftest.js`（四种注错各红 + 一个"必须仍绿"用例）。
+    """
+    base = os.path.join(ROOT, SKILL_REL)
+    skill_md = os.path.join(base, 'SKILL.md')
+    if not os.path.exists(skill_md):
+        return ['(a) 找不到 %s（skill 随仓库走，机制见 §7）'
+                % os.path.join(SKILL_REL, 'SKILL.md').replace('\\', '/')]
+    raw = read(os.path.join(SKILL_REL, 'SKILL.md'))
+    probs = []
+
+    # ---------- (a) frontmatter ----------
+    fields = {}
+    m = re.match(r'(?s)^---\r?\n(.*?)\r?\n---\r?\n', raw)
+    if not m:
+        probs.append('(a) SKILL.md 缺 frontmatter（要 `---` 包裹的 name / description，见 §7）')
+    else:
+        for line in m.group(1).split('\n'):
+            mm = re.match(r'^([A-Za-z][\w-]*):\s*(.+)$', line)
+            if mm:
+                fields[mm.group(1)] = mm.group(2).strip()
+        for k in ('name', 'description'):
+            if not fields.get(k):
+                probs.append('(a) frontmatter 缺必填字段 `%s`（缺了 skill 会被静默忽略）' % k)
+        if fields.get('name') and fields['name'] != os.path.basename(base):
+            probs.append('(a) frontmatter `name: %s` 与所在目录名 `%s` 不一致'
+                         % (fields['name'], os.path.basename(base)))
+        desc = re.sub(r'\s+', ' ', fields.get('description', '')).strip()
+        if len(desc) > CATALOG_DESC_MAX:
+            probs.append('(a) `description` 归一化后 %d 字符 > 目录上限 %d（会被截断，见 §7）'
+                         % (len(desc), CATALOG_DESC_MAX))
+
+    # ---------- (b) 八闸门表：skill ↔ handover §3.5.0 ----------
+    hL = read('docs/handover.md').split('\n')
+    secs = _md_sections(hL)
+    if '3.5.0' not in secs:
+        probs.append('(b) handover 里找不到 `#### 3.5.0` 那一节（闸门表搬家了？）')
+    else:
+        rng = secs['3.5.0']
+        want = _table_first_col('\n'.join(hL[rng[0]:rng[1]]))
+        i = raw.find('八条闸门')
+        got = _table_first_col(raw[i:] if i >= 0 else '')
+        if want != got:
+            probs.append('(b) skill 的八闸门表 %s ≠ handover §3.5.0 的 %s（§3.5.0 末尾要求两边同步）'
+                         % (got or '（没解析到）', want or '（没解析到）'))
+
+    # ---------- (c) §x.y-N 引用可解析 ----------
+    texts = {}
+    for dp, _dn, fn in os.walk(base):
+        for n in sorted(fn):
+            p = os.path.join(dp, n)
+            try:
+                with open(p, encoding='utf-8') as f:
+                    texts[os.path.relpath(p, ROOT).replace('\\', '/')] = f.read()
+            except Exception:
+                pass
+    for sid, n in sorted(set(re.findall(r'§(\d+(?:\.\d+)*)-(\d+)',
+                                        '\n'.join(texts.values()))),
+                         key=lambda t: [int(x) for x in t[0].split('.')] + [int(t[1])]):
+        if sid not in secs:
+            probs.append('(c) skill 引用了 `§%s-%s`，但 handover 没有 `§%s` 这一节' % (sid, n, sid))
+        elif not _item_present('\n'.join(hL[secs[sid][0]:secs[sid][1]]), int(n)):
+            probs.append('(c) skill 引用了 `§%s-%s`，但 handover `§%s` 里找不到第 %s 条'
+                         % (sid, n, sid, n))
+
+    # ---------- (d) tmp_* 文件真实存在 ----------
+    for f in sorted(set(re.findall(r'\btmp_[\w.-]+\.(?:js|md|html|svg|png)', '\n'.join(texts.values())))):
+        if not os.path.exists(os.path.join(ROOT, f)):
+            probs.append('(d) skill 里提到的 `%s` 在仓库根不存在（被收尾清掉了？）' % f)
+    return probs
+
+
 def main():
     ap = argparse.ArgumentParser(description='handover/README 文档计数自检')
     ap.add_argument('--list', action='store_true', help='只打印实测值')
@@ -363,17 +535,33 @@ def main():
     print('-' * 78)
     for label, key, fname, pat, must in CHECKS:
         text = read(fname)
-        found = re.search(pat, text)
-        if not found:
+        # 窗18 修正：原来用 re.search 取**第一个**命中——某个历史 §6.2.N 里若把当时的 live 字样
+        # （如 `静态资源版本：**v=53**`）**原样放进反引号引用**，它排在 §6.4 前面，就会把检查器
+        # 永久钉在旧值上（本窗实测：§6.4 已改 v=54，仍报"文档写 53"）。
+        # 对策：**跳过被反引号包住的"引用样例"**（那是历史叙述，不是当前值），只认正文里的那一处。
+        if key == 'version':
+            cand = []
+            for mm in re.finditer(pat, text):
+                if _in_code_span(text, mm.start(), mm.end()):
+                    continue                        # 代码跨度里的引用样例（历史叙述）
+                cand.append(int(mm.group(1)))
+            found_val = cand[0] if cand else None
+        else:
+            found = re.search(pat, text)
+            found_val = int(found.group(1)) if found else None
+        if found_val is None:
             (unknown if must else None) and unknown.append(label)
             print('  ?  %-34s 文档里没找到对应句子（结构变了？请人工看一眼）' % label)
             continue
-        doc_val, real = int(found.group(1)), int(m[key])
+        doc_val, real = found_val, int(m[key])
         if doc_val == real:
-            print('  OK %-34s %d' % (label, doc_val))
+            print('  OK %-34s %s' % (label, doc_val))
         else:
             bad.append((label, fname, doc_val, real))
-            print('  ✖  %-34s 文档写 %d，实际 %d（改 %s）' % (label, doc_val, real, fname))
+            # 窗18：版本这一类带 `v=` 前缀（文档里就是这么写的），报错也带上前缀，
+            # 否则错误信息只出现裸数字、与"判据 = 静态资源版本：**v=N**"对不上。
+            pre = 'v=' if key == 'version' else ''
+            print('  ✖  %-34s 文档写 %s%d，实际 %s%d（改 %s）' % (label, pre, doc_val, pre, real, fname))
     print('-' * 78)
     n_mod, bad_mod = module_syntax_check()
     if n_mod is None:
@@ -418,6 +606,15 @@ def main():
             print('  ✖  %-34s %s' % ('handover 度量衡', why))
     else:
         print('  OK %-34s 散文符号/数字/窗号统一、表格行 ≤500 字符' % 'handover 度量衡')
+    # 窗17 新增第 15 项：skill ↔ handover 一致性（四条子判据，见 §6.2.15）
+    sk = skill_handover_check()
+    if sk:
+        for why in sk:
+            bad.append(('skill ↔ handover 一致性', SKILL_REL.replace('\\', '/') + '/SKILL.md', 0, 0))
+            print('  ✖  %-34s %s' % ('skill ↔ handover 一致性', why))
+    else:
+        print('  OK %-34s frontmatter 齐 / 八闸门表与 §3.5.0 一致 / 节号可解析 / tmp_* 都在'
+              % 'skill ↔ handover 一致性')
     print('-' * 78)
     if bad:
         print('✖ %d 处不一致；改完再跑一次本脚本' % len(bad))
