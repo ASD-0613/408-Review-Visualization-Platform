@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<link rel="stylesheet" href="css/style.css?v=51">
+<link rel="stylesheet" href="css/style.css?v=59">
 </head>
 
 <body class="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
@@ -153,54 +153,59 @@
 </div>
 
 <!-- ======================= 脚本（普通 script 标签，file:// 协议可直接运行） ======================= -->
-<script src="js/framework.js?v=51"></script>          <!-- 核心框架：Runner / 控制面板 / Markdown / 日志 -->
-<script src="js/exam-history.js?v=51"></script>   <!-- 各模块历年考察数据（考情条数据源，须在 framework 之后） -->
-<script src="js/modules/ds-kruskal.js?v=51"></script>    <!-- 数据结构：Kruskal 最小生成树 -->
-<script src="js/modules/ds-bintree.js?v=51"></script>    <!-- 数据结构：二叉树的遍历 -->
-<script src="js/modules/ds-stack-queue.js?v=51"></script>
-<script src="js/modules/ds-expression.js?v=51"></script>    <!-- 数据结构：中缀转后缀与后缀求值 -->
-<script src="js/modules/ds-binsearch.js?v=51"></script>    <!-- 数据结构：折半查找与判定树 -->
-<script src="js/modules/ds-sort.js?v=51"></script>    <!-- 数据结构：排序算法全家桶 -->
-<script src="js/modules/net-subnet.js?v=51"></script>     <!-- 计算机网络：IPv4 与子网划分 -->
-<script src="js/modules/os-lru.js?v=51"></script>        <!-- 操作系统：LRU 页面置换 -->
-<script src="js/modules/os-vm.js?v=51"></script>         <!-- 操作系统：页式虚拟内存 · 地址转换 -->
-<script src="js/modules/os-pv.js?v=51"></script>        <!-- 操作系统：PV 操作 -->
-<script src="js/modules/os-procstate.js?v=51"></script>      <!-- 操作系统：进程五态转换 -->
-<script src="js/modules/os-disk-sched.js?v=51"></script>      <!-- 操作系统：磁盘调度 SSTF/SCAN/C-SCAN -->
-<script src="js/modules/os-file-alloc.js?v=51"></script>      <!-- 操作系统：文件物理结构与混合索引 -->
-<script src="js/modules/coa-cache-assoc.js?v=51"></script> <!-- 计组：组相联与全相联映射 -->
-<script src="js/modules/coa-cache-direct.js?v=51"></script>      <!-- 计组：Cache 直接映射 -->
-<script src="js/modules/coa-addressing.js?v=51"></script> <!-- 计组：指令寻址方式 -->
-<script src="js/modules/coa-fixadd.js?v=51"></script> <!-- 计组：补码加减与溢出判断 -->
-    <script src="js/modules/coa-baseconv.js?v=51"></script>    <!-- 计组：进位计数制与转换（R 进制互转） -->
-    <script src="js/modules/coa-muldiv.js?v=51"></script>    <!-- 计组：乘除运算电路（原码一位乘 / 加减交替除法） -->
-<script src="js/modules/coa-float754.js?v=51"></script><!-- 计组：IEEE 754 浮点数 -->
-<script src="js/modules/net-tcp-conn.js?v=51"></script>        <!-- 计算机网络：TCP 连接建立与释放 -->
-<script src="js/modules/net-tcp-cc.js?v=51"></script> <!-- 计算机网络：TCP 拥塞控制 -->
-<script src="js/modules/ds-huffman.js?v=51"></script>
-<script src="js/modules/ds-dijkstra.js?v=51"></script>
-<script src="js/modules/ds-hash.js?v=51"></script>
-<script src="js/modules/ds-btree.js?v=51"></script>    <!-- 数据结构：B 树与 B+ 树 -->
-<script src="js/modules/ds-bst-avl.js?v=51"></script>    <!-- 数据结构：二叉排序树与 AVL 旋转 -->
-<script src="js/modules/ds-heap.js?v=51"></script>    <!-- 数据结构：堆与优先队列（完全二叉树 ⇄ 数组双视角） -->
-<script src="js/modules/coa-mainmem.js?v=51"></script>    <!-- 计组：主存与 CPU 连接（存储器芯片扩展） -->
-<script src="js/modules/ds-kmp.js?v=51"></script>
-<script src="js/modules/ds-topo.js?v=51"></script>
-<script src="js/modules/ds-dfs-bfs.js?v=51"></script>    <!-- 数据结构：图的遍历 DFS / BFS -->
-<script src="js/modules/os-sched.js?v=51"></script>
-<script src="js/modules/os-deadlock.js?v=51"></script>
-<script src="js/modules/net-crc.js?v=51"></script>
-<script src="js/modules/net-window.js?v=51"></script>
-<script src="js/modules/net-shannon.js?v=51"></script>
-<script src="js/modules/net-dns.js?v=51"></script>    <!-- 计算机网络：DNS 域名解析过程（递归 / 迭代 / 缓存） -->
-<script src="js/modules/net-http.js?v=51"></script>    <!-- 计算机网络：HTTP 请求与持久连接（三种连接的 RTT 计数） -->
-<script src="js/modules/net-mail.js?v=51"></script>    <!-- 计算机网络：电子邮件与 FTP（SMTP 推 / POP3·IMAP 拉 / FTP 双连接） -->
-<script src="js/modules/net-switch.js?v=51"></script>    <!-- 计算机网络：以太网交换机自学习（转发表 / 泛洪 / 过滤丢弃） -->
-<script src="js/modules/coa-perf.js?v=51"></script>
-<script src="js/modules/coa-io.js?v=51"></script>
-<script src="js/modules/coa-disk.js?v=51"></script>
-<script src="js/modules/coa-pipeline.js?v=51"></script>
-<script src="js/app.js?v=51"></script>                <!-- 四本书目录树 + 导航 + 启动 -->
+<script src="js/framework.js?v=59"></script>          <!-- 核心框架：Runner / 控制面板 / Markdown / 日志 -->
+<script src="js/exam-history.js?v=59"></script>   <!-- 各模块历年考察数据（考情条数据源，须在 framework 之后） -->
+<script src="js/modules/ds-kruskal.js?v=59"></script>    <!-- 数据结构：Kruskal 最小生成树 -->
+<script src="js/modules/ds-prim.js?v=59"></script>    <!-- 数据结构：Prim 最小生成树（顶点扩张 + 与 Kruskal 双栏对照） -->
+<script src="js/modules/ds-bintree.js?v=59"></script>    <!-- 数据结构：二叉树的遍历 -->
+<script src="js/modules/ds-stack-queue.js?v=59"></script>
+<script src="js/modules/ds-expression.js?v=59"></script>    <!-- 数据结构：中缀转后缀与后缀求值 -->
+<script src="js/modules/ds-binsearch.js?v=59"></script>    <!-- 数据结构：折半查找与判定树 -->
+<script src="js/modules/ds-sort.js?v=59"></script>    <!-- 数据结构：排序算法全家桶 -->
+<script src="js/modules/net-subnet.js?v=59"></script>     <!-- 计算机网络：IPv4 与子网划分 -->
+<script src="js/modules/os-lru.js?v=59"></script>        <!-- 操作系统：LRU 页面置换 -->
+<script src="js/modules/os-vm.js?v=59"></script>         <!-- 操作系统：页式虚拟内存 · 地址转换 -->
+<script src="js/modules/os-pv.js?v=59"></script>        <!-- 操作系统：PV 操作 -->
+<script src="js/modules/os-procstate.js?v=59"></script>      <!-- 操作系统：进程五态转换 -->
+<script src="js/modules/os-disk-sched.js?v=59"></script>      <!-- 操作系统：磁盘调度 SSTF/SCAN/C-SCAN -->
+<script src="js/modules/os-file-alloc.js?v=59"></script>      <!-- 操作系统：文件物理结构与混合索引 -->
+<script src="js/modules/coa-cache-assoc.js?v=59"></script> <!-- 计组：组相联与全相联映射 -->
+<script src="js/modules/coa-cache-direct.js?v=59"></script>      <!-- 计组：Cache 直接映射 -->
+<script src="js/modules/coa-addressing.js?v=59"></script> <!-- 计组：指令寻址方式 -->
+<script src="js/modules/coa-fixadd.js?v=59"></script> <!-- 计组：补码加减与溢出判断 -->
+    <script src="js/modules/coa-baseconv.js?v=59"></script>    <!-- 计组：进位计数制与转换（R 进制互转） -->
+    <script src="js/modules/coa-muldiv.js?v=59"></script>    <!-- 计组：乘除运算电路（原码一位乘 / 加减交替除法） -->
+<script src="js/modules/coa-float754.js?v=59"></script><!-- 计组：IEEE 754 浮点数 -->
+<script src="js/modules/coa-floatadd.js?v=59"></script><!-- 计组：浮点数加减（对阶/规格化/舍入） -->
+<script src="js/modules/net-tcp-conn.js?v=59"></script>        <!-- 计算机网络：TCP 连接建立与释放 -->
+<script src="js/modules/net-tcp-cc.js?v=59"></script> <!-- 计算机网络：TCP 拥塞控制 -->
+<script src="js/modules/ds-huffman.js?v=59"></script>
+<script src="js/modules/ds-dijkstra.js?v=59"></script>
+<script src="js/modules/ds-hash.js?v=59"></script>
+<script src="js/modules/ds-btree.js?v=59"></script>    <!-- 数据结构：B 树与 B+ 树 -->
+<script src="js/modules/ds-bst-avl.js?v=59"></script>    <!-- 数据结构：二叉排序树与 AVL 旋转 -->
+<script src="js/modules/ds-heap.js?v=59"></script>    <!-- 数据结构：堆与优先队列（完全二叉树 ⇄ 数组双视角） -->
+<script src="js/modules/coa-mainmem.js?v=59"></script>    <!-- 计组：主存与 CPU 连接（存储器芯片扩展） -->
+<script src="js/modules/ds-kmp.js?v=59"></script>
+<script src="js/modules/ds-topo.js?v=59"></script>
+<script src="js/modules/ds-dfs-bfs.js?v=59"></script>    <!-- 数据结构：图的遍历 DFS / BFS -->
+<script src="js/modules/os-sched.js?v=59"></script>
+<script src="js/modules/os-deadlock.js?v=59"></script>
+<script src="js/modules/net-crc.js?v=59"></script>
+<script src="js/modules/net-window.js?v=59"></script>
+<script src="js/modules/net-shannon.js?v=59"></script>
+<script src="js/modules/net-dns.js?v=59"></script>    <!-- 计算机网络：DNS 域名解析过程（递归 / 迭代 / 缓存） -->
+<script src="js/modules/net-http.js?v=59"></script>    <!-- 计算机网络：HTTP 请求与持久连接（三种连接的 RTT 计数） -->
+<script src="js/modules/net-mail.js?v=59"></script>    <!-- 计算机网络：电子邮件与 FTP（SMTP 推 / POP3·IMAP 拉 / FTP 双连接） -->
+<script src="js/modules/net-switch.js?v=59"></script>    <!-- 计算机网络：以太网交换机自学习（转发表 / 泛洪 / 过滤丢弃） -->
+<script src="js/modules/net-routing.js?v=59"></script>    <!-- 计算机网络：路由算法与协议（RIP 距离向量 / OSPF 链路状态） -->
+<script src="js/modules/net-csma.js?v=59"></script>    <!-- 计算机网络：CSMA/CD 与最小帧长（争用期 / 冲突检测 / 指数退避 / CSMA/CA） -->
+<script src="js/modules/net-fragment.js?v=59"></script>    <!-- 计算机网络：IP 分片与重组（MTU / 片偏移 / MF，即时计算器） -->
+<script src="js/modules/coa-perf.js?v=59"></script>
+<script src="js/modules/coa-io.js?v=59"></script>
+<script src="js/modules/coa-disk.js?v=59"></script>
+<script src="js/modules/coa-pipeline.js?v=59"></script>
+<script src="js/app.js?v=59"></script>                <!-- 四本书目录树 + 导航 + 启动 -->
 
 <script>
   /* Tailwind CDN 离线检测 */
