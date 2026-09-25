@@ -95,7 +95,11 @@ CHECKS = [
     #   （"窗8 收尾时：…建设中 15…"）。窗20 该值 15 → 14，判据随即报红，会逼下一窗去篡改历史举例。
     #   对策：把判据锚到 §5 结构块里那条**唯一的当前值行**（`96 条目 = ready N / 纯理论 N / 建设中 N`），
     #   历史散文里的旧值不再命中（与窗18 修 version 那条同源）。
-    ('handover：建设中条数', 'wip', 'docs/handover.md', r'96 条目 = ready \d+ / 纯理论 \d+ / 建设中 (\d+)', True),
+    # ⚠ 窗22 再修一次（§3.8-17 同一条纪律的**第六次复发**）：窗20 把判据锚到了
+    #   `96 条目 = ready …`，但**把"96"写进了正则**——窗22 新增一张纯理论卡（条目 96 → 97）后，
+    #   该行首数字一变、判据立刻再也匹配不到，输出从 `OK` 变成 `?`（"没找到对应句子"）。
+    #   **教训：锚点里不要写"会被正常业务改动改掉"的数字**；改成只锚"结构"（`\d+ 条目 = …`）。
+    ('handover：建设中条数', 'wip', 'docs/handover.md', r'\d+ 条目 = ready \d+ / 纯理论 \d+ / 建设中 (\d+)', True),
     ('handover：火苗 hot 数（§1.5）', 'hot', 'docs/handover.md', r'`hot:true` 实测 \*\*(\d+)\*\*', True),
     ('handover：静态资源版本（§6.4）', 'version', 'docs/handover.md', r'静态资源版本：\*\*v=(\d+)\*\*', True),
     ('README：已实现模块总览', 'module_files', 'README.md', r'已实现模块总览（(\d+) 个', True),
@@ -270,15 +274,44 @@ def handover_selfcheck(version, totals, done):
             real = totals.get(book, 0) - done.get(book, 0)
             if num != real:
                 probs.append('%s：`%s` 剩 %d 个，实测未做 %d 个（共 %d）' % (rname, book, num, real, totals.get(book, 0)))
-        for m in re.finditer(r'v=(\d+)\s*→\s*(\d+)', rtext):
+        for m in re.finditer(r'v=(\d+)[^\n]*?→[^\n]*?(\d+)', rtext):
             # 窗18：同样跳过**代码跨度里的引用样例**（如本窗 §6.2.16 引用 t13 自测的旧锚点
             # `` `v=49 → 50` ``）——那是历史叙述，不是"当前版本"。
             if _in_code_span(rtext, m.start(), m.end()):
                 continue
-            if int(m.group(2)) != int(version):
-                probs.append('%s：写 `v=%s → %s`，当前静态资源实际是 v=%s' % (rname, m.group(1), m.group(2), version))
-        if '三模式' in rtext or '三个模式' in rtext:
-            probs.append('%s：仍在说"三个模式"——`tmp_readme_audit.js check` 现在跑**四**模式（overview/t5chk/years/comments）' % rname)
+            # ⚠ 窗25 修判据失效（§3.8-17① 同族，第 N 次复发）：旧写法只认 `v=A → B` 取**第 1 个**箭头后的
+            # 数字。而"一窗内递增两次"是常事（窗24 v=62→63→64、窗25 v=64→65→66），叙述里就变成
+            # `v=64 → 65 → 66`：旧判据取到 65 而当前是 66 ⟹ **把完全正确的句子判红**（误报，第四种形态）。
+            # 正解：取**最后一个数字**当"当前值"。
+            nums = re.findall(r'(\d+)', m.group(0))
+            if len(nums) < 2:
+                continue
+            if int(nums[-1]) != int(version):
+                probs.append('%s：写 `v=%s → …→ %s`，当前静态资源实际是 v=%s'
+                             % (rname, m.group(1), nums[-1], version))
+        # ⚠ 窗25 修判据失效（同族第二次）：旧写法是 `if '三模式' in rtext`——它想禁的是
+        # "对账脚本只有三个模式"这种**过时陈述**，但"三模式"是**模块自己**的常用词
+        # （本窗 ds-extsort 就是"三模式单选"）⟹ 一条完全无关的叙述被判红。
+        # 正解：**按句**判定（不是拍脑袋的 40 字窗口）——该句同时满足
+        #   ①含"三模式/三个模式" ②说的是**对账脚本** ③**不是**在"讲历史 / 讲这条判据本身"
+        # 才判红。③ 用两组词识别：时间词（当时/曾/历史/原样保留）+ **元叙述词**
+        # （判据/旧写法/改成/措辞/登记/本条）——后者是因为**解释这条判据的那段说明**
+        # 必然会引用被判的字面串，属于同一种"判据把正确的文字判红"。
+        _HIST = ('当时', '曾', '原样保留', '历史', '窗25 注')
+        _META = ('判据', '旧写法', '改成', '措辞', '登记', '本条', '它想禁')
+        for m in re.finditer(r'三(?:个)?模式', rtext):
+            # 找该命中所在的"句"：向前后各扩到最近的句读边界
+            a = max(rtext.rfind(c, 0, m.start()) for c in '。；\n')
+            b_candidates = [rtext.find(c, m.end()) for c in '。；\n']
+            b_candidates = [x for x in b_candidates if x >= 0]
+            b = min(b_candidates) if b_candidates else len(rtext)
+            sent = rtext[a + 1:b + 1]
+            if not (('readme_audit' in sent) or ('对账' in sent)):
+                continue
+            if any(h in sent for h in _HIST) or any(h in sent for h in _META):
+                continue
+            probs.append('%s：仍在说"三个模式"——`tmp_readme_audit.js check` 现在跑**四**模式'
+                         '（overview/t5chk/years/comments）' % rname)
     return done_total, total_all, probs
 
 
@@ -375,7 +408,7 @@ def wording_check():
 def _table_first_col(text):
     """取一段文本里**第一张表**的首列（只认 `1` / `8b` 这种行号格）。
 
-    用来比对"skill 的八闸门表 ↔ handover §3.5.0 的表"：两边的行数与编号必须一样。
+    用来比对"skill 的九闸门表 ↔ handover §3.5.0 的表"：两边的行数与编号必须一样。
     兼容 table 前带 `> ` 的引用块（handover §3.5.0 的表就是写在 `> ` 里的）。
     """
     out = []
@@ -441,7 +474,7 @@ def skill_handover_check():
     本项把 §6.2.14⑩② 的四条落地（每条都能机器做）：
       (a) frontmatter：必填字段齐、`name` 与目录名一致、`description` 长度在目录上限内
           （上限 500 来自 DSH 的 `DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH`，超了会被截断成 `…`，见 §7）；
-      (b) skill 的"八闸门"表首列（行数 + 编号顺序）**必须等于** handover `§3.5.0` 那张表；
+      (b) skill 的"九闸门"表首列（行数 + 编号顺序）**必须等于** handover `§3.5.0` 那张表；
       (c) skill（含 `references/` 与 `scripts/`）里引用的每个 `§x.y-N` 都能在 handover 里解析到；
       (d) skill 里提到的每个 `tmp_*` 文件都真实存在（防收尾按"引用 0 次"清理时把 skill 的模板删掉）。
     ⚠ **判据自身做过注入自测**：`node tmp_t17_skill_selftest.js`（四种注错各红 + 一个"必须仍绿"用例）。
@@ -475,7 +508,7 @@ def skill_handover_check():
             probs.append('(a) `description` 归一化后 %d 字符 > 目录上限 %d（会被截断，见 §7）'
                          % (len(desc), CATALOG_DESC_MAX))
 
-    # ---------- (b) 八闸门表：skill ↔ handover §3.5.0 ----------
+    # ---------- (b) 九闸门表：skill ↔ handover §3.5.0 ----------
     hL = read('docs/handover.md').split('\n')
     secs = _md_sections(hL)
     if '3.5.0' not in secs:
@@ -483,10 +516,10 @@ def skill_handover_check():
     else:
         rng = secs['3.5.0']
         want = _table_first_col('\n'.join(hL[rng[0]:rng[1]]))
-        i = raw.find('八条闸门')
+        i = raw.find('九条闸门')
         got = _table_first_col(raw[i:] if i >= 0 else '')
         if want != got:
-            probs.append('(b) skill 的八闸门表 %s ≠ handover §3.5.0 的 %s（§3.5.0 末尾要求两边同步）'
+            probs.append('(b) skill 的九闸门表 %s ≠ handover §3.5.0 的 %s（§3.5.0 末尾要求两边同步）'
                          % (got or '（没解析到）', want or '（没解析到）'))
 
     # ---------- (c) §x.y-N 引用可解析 ----------
@@ -613,7 +646,7 @@ def main():
             bad.append(('skill ↔ handover 一致性', SKILL_REL.replace('\\', '/') + '/SKILL.md', 0, 0))
             print('  ✖  %-34s %s' % ('skill ↔ handover 一致性', why))
     else:
-        print('  OK %-34s frontmatter 齐 / 八闸门表与 §3.5.0 一致 / 节号可解析 / tmp_* 都在'
+        print('  OK %-34s frontmatter 齐 / 九闸门表与 §3.5.0 一致 / 节号可解析 / tmp_* 都在'
               % 'skill ↔ handover 一致性')
     print('-' * 78)
     if bad:

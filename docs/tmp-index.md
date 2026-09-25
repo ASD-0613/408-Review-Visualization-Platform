@@ -25,6 +25,10 @@
 | `tmp_heap_smoke.js` | 树/堆类（ds-heap） |
 | `tmp_sw_smoke.js` | 时序箭头类（net-switch / net-mail 前身） |
 | `tmp_dp_smoke.js` | **窗20 新增**：**同族对照对**（ds-prim + ds-kruskal）——含跨割最小权独立重算、Kruskal 并查集、**暴力枚举**、**两模块互证**（边集/次序/总权值）、11 类非法输入 |
+| `tmp_t24_anno_smoke.js` | **窗24 新增**：**纯函数区间核冒烟**（`js/annotate.js` 的 normalize/union/subtract/isCovered/plan + 存储四种坏数据 + `blocks()` 跳分布条 + `textLen` 公式子树算 0）；**不依赖 DOM**，74 条断言 |
+| `tmp_t24_preset_smoke.js` | **窗24 新增**：**全库"快捷预设"体检（Node）**——用桩 rt 跑每个 `def.quickActions`，校验"设的键存在 / **select 值真在 options 里** / 用浏览器真实会给的值跑 parse+buildSnapshots（stepper ≥3 帧）"；现算 **153/153 合格**。⚠ 桩里的 `rnd` 必须会变（恒返回同值会让 ds-btree 的随机预设死循环）、`inputEls`/`RC408.Runner` 都要给（否则误报合法预设） |
+| `tmp_es_smoke.js` | **窗25 新增**：**外部排序**（ds-extsort）三模式——**三条独立参考实现**（置换-选择 O(n²) 版 / k 路归并现算最小值版 / 趟数与虚段按定义重算）逐段逐帧对账 + **SVG 几何断言（rect/circle 连半径/line 都在 viewBox 内）** + 真题锚点（2019-11 虚段=2、2012-41 虚段=0、2023-42 共 3 段、2026-11 三命题）+ 源码级"裸反引号/反引号是否配对"；**47 场景 / 4064 项断言**。⚠ 参考实现自己连错三版（详见文件头注释与 handover §3.8-5 窗25 补充） |
+| `tmp_es_probe.js` | **窗25 新增**：**中间量探针**（写模块与断言**之前**跑，§3.5.22）——置换-选择的段长分布（逆序= M、升序=整份一段、随机 200 组大样本平均≈2M）、`d=⌈log_k m⌉` 与"每趟按 k 折减"互证、虚段公式含 2019-11 锚点。**改算法先跑它** |
 
 ## 浏览器 harness（headless Chrome + CDP，**必须提权**）
 | 文件 | 用途 |
@@ -34,10 +38,13 @@
 | `tmp_nr_harness.js` | **窗15 新增**：用 #ctl-seek 直接 seek 的逐帧几何断言（截图走 UI） |
 | `tmp_dp_harness.js + tmp_dp_check.js` | **窗20 新增**：**一个 harness 跑两个模块**（ds-prim + ds-kruskal）——SVG 越界 / 顶点圆压盖 / **权值标签两两压盖** / 表格与 chip 数 ↔ 快照 / 高亮行 = 快照 `cur` / 颜色与"根 X" = 快照；⚠ 每模块开跑前必须切 `Runner.def`（§6.2.18③） |
 | `tmp_mainmem_harness.js` | 主存芯片扩展逐帧几何 |
+| `tmp_es_harness.js` | **窗25 新增**：**外部排序**（ds-extsort）专项——全站遍历 + **走 UI**（设输入框→`input` 事件→`ctl-load`→连点 `ctl-step`）把模式①②③ 与 k=4/5、两张真题预设逐帧跑到底，每帧断言不含"输入有误 / is not defined / NaN / [object Object]"；6 张原分辨率截图；**收尾只发 CDP `Browser.close`**。⚠ 离线 harness 不加载 Tailwind CDN ⟹ 模块自己的元素组要在 `style.css` 里有**纯 CSS** 的 flex 规则（`v=65→66` 就是为此） |
 | `tmp_heap_harness.js` | 堆逐帧几何 |
 | `tmp_sw_harness.js` | 交换机时序箭头逐帧几何 |
 | `tmp_t10_harness.js` | **理论区**：KaTeX 定界符桩 + 数学节点数（改了 framework/md/renderMath 必跑） |
 | `tmp_t11_theory_harness.js` | **理论区**：三问开篇 / 考情块行数 / 考情条一致性 + 理论区截图 |
+| `tmp_t24_anno_harness.js` | **窗24 新增**：**理论区手动标注**专用——CDP **真鼠标拖拽**（`Input.dispatchMouseEvent`）验证"拖选变红 / 粗细不变 / 再选恢复 / 刷新保留 / 公式不动 / 跨块"；**浏览器自动探测 Chrome→Edge**（`DSH_BROWSER` 可指定）；**收尾只发 CDP `Browser.close`、绝不按进程名杀**（§3.5-10「窗24 改写」）；已内置"滚动后坐标失效 / 先点按钮再 reveal"两个坑的规避 |
+| `tmp_t24_ui_harness.js` | **窗24 新增**：**全库快捷预设的浏览器实测**——CDP **真点按钮**逐个点 153 个预设，断言"不出现『输入有误』、进度不是 `0 / 0`、stepper 帧数 ≥3"，另含 5 个模块的语义断言（net-tcp-cc 曲线起点=(0,1) 与丢包峰值=16、coa-fixadd 的 CF/OF 两档、ds-stack-queue 的 2026-42 两序列、ds-topo 回路、net-dns 缓存命中）；Edge/Chrome 各 32 条全绿 |
 
 ## 对账与体检（收尾必跑；都不是"硬门"，除注明外）
 | 文件 | 用途 |
@@ -73,8 +80,17 @@
 | `tmp_t13_split_history.js` | 把 §6.6.1 巨型明细搬到 handover-history.md |
 | `tmp_t16_trim.js` | **窗16 新增**：handover 减重器——按锚点区间搬 / 压 / 插（move·moveto·replace·insert，写盘前五条断言）；配套数据文件 tmp_t16_skill_section7.md |
 | `tmp_t20_trim.js + tmp_t20_new361.md` | **窗20 新增**：把 §3.6.1 压成"倾向 → 对策"两列、**原文逐字搬进 `docs/handover-history.md`**（幂等，重复 --apply 不会追加两次）；配套数据文件是新正文 |
+| `tmp_es_doccheck_test.js` | **窗25 新增**：`doc_check` 第 12 项**两处判据的注入自测**（版本取"最后一个箭头后的数字"、说"三个模式"只在**对账脚本上下文且非历史句**时才判红）——4 用例：该红的红（版本注错 / 真过时陈述）、该绿的绿（历史句 / 模块自己的用词）。⚠ 文件头记着"注入自测本身极易测个寂寞"的 4 个坑 |
 | `tmp_t13_wording_probe.js + tmp_t13_wording_fix.js` | 度量衡普查（先量）+ 归一化（再改） |
 | `tmp_t10_check_static.js + tmp_t11_check_static.js` | t10/t11 harness 的**页面脚本**（由 harness 生成/引用） |
+
+## 取证 / 目视工具（文本度量与截图度量；判据要"从真源取数或从像素取数"时用）
+| 文件 | 用途 |
+| --- | --- |
+| `tmp_t24_sections.js` | **窗24 新增**：把 50 个模块 `theory` + 33 张卡 `note` 一起盘点（板块数 / 字符数 / 内联"年份-题号"引用数）；**两个反例写在头注释里**——`indexOf` 第二参传字符串会被当 0、卡片 id 正则窗口开太大会把上一条的 id 记错 |
+| `tmp_t24_redbox.js` | **窗24 新增**：截图里"红字"的**包围盒与逐带像素数**（判定某张图到底有没有红字、差了多少）；跨图逐带相减即可证明"只有标注处变了" |
+| `tmp_t24_crop.js` | **窗24 新增**：PNG 放大裁图（支持 `x0 x1 z out [y0 y1]`）——**原分辨率目视**用；判据仍以断言为准，裁图只作二档 |
+| `tmp_t24_glyph.js` | **窗24 新增**：逐字给出"最暗 15% 像素的平均色 + 红度"（判断样图里是不是真有红字；子像素渲染的边缘噪声红度通常 <40，真红字 100+） |
 
 ## 历史证据（只读留档，别再改；大体积 txt 见文末"归档区"）
 | 文件 | 用途 |
