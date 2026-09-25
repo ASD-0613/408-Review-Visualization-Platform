@@ -65,13 +65,20 @@ RC408.registerModule({
 
   quickActions: [
     { label: '纯增长(无丢包)', run(rt) { rt.setInput('events', ''); rt.setInput('rtts', 16); rt.load(); } },
-    { label: '双重超时示例', run(rt) { rt.setInput('ssthresh0', 16); rt.setInput('events', '4:timeout, 12:timeout, 20:3dup'); rt.setInput('rtts', 28); rt.load(); } },
+    { label: '双重超时示例', run(rt) { rt.setInput('ssthresh0', 16); rt.setInput('events', '4:timeout, 12:timeout, 20:3dup'); rt.setInput('rtts', 32); rt.load(); } },
   ],
 
   /* ---------------- ① 解析输入 ---------------- */
   parse(vals) {
     const ssthresh0 = parseInt(vals.ssthresh0, 10);
     const rtts = parseInt(vals.rtts, 10);
+    /* ★ 窗24 补的护栏：`rtts` 是下拉框，若预设给了**不在选项里的值**（例如 28），浏览器会把
+       `select.value` 置空 ⟹ 这里拿到空串 ⟹ NaN ⟹ `for (t = 1; t <= NaN; …)` 一帧都不跑，
+       只留下 init + done 两帧、界面显示"步骤 0 / 1"，而且**全程不报错**（用户 2026-09-25 报的就是这个）。
+       现在直接把"无效时长"变成一条看得见的错误。 */
+    if (!Number.isFinite(rtts) || rtts < 2) {
+      throw { message: `演示总时长「${vals.rtts}」无效：请在下拉框里选择 16 / 24 / 32 / 40 个 RTT` };
+    }
     const events = [];
     vals.events.split(/[,，；;]+/).map(x => x.trim()).filter(Boolean).forEach(tok => {
       const m = tok.match(/^(?:RTT\s*)?(\d+)\s*[:：]\s*(timeout|3dup|3dupack)$/i);
@@ -96,7 +103,7 @@ RC408.registerModule({
     let cwnd = 1, ssthresh = ssthresh0;
     const history = [];
     const snaps = [];
-    const state = () => ({ history: history.map(h => ({ ...h })), cwnd, ssthresh });
+    const state = () => ({ history: history.map(h => ({ ...h })), cwnd, ssthresh, rtts });
 
     snaps.push({
       step: 'init', ...state(), rtt: 0, cwndBefore: null, cwndAfter: cwnd, phase: 'init',
@@ -130,7 +137,10 @@ RC408.registerModule({
         } else {
           cwnd = ssthresh;                            // 快恢复：回到新阈值，直接转拥塞避免
         }
-        history.push({ rtt: t, cwnd: cwndBefore, phase, loss: lossType, after: cwnd, ssthresh });
+        /* ★ 窗24 修：丢包那一拍要画**丢包瞬间的 cwnd**（= atLoss），不是本拍开始前的值——
+           原来写 cwndBefore 会让曲线在丢包点**提前一拍台阶下降**（ssthresh0=16 时峰值显示 8 而不是 16），
+           与同一条日志里的"此时 cwnd = 16"自相矛盾。 */
+        history.push({ rtt: t, cwnd: atLoss, phase, loss: lossType, after: cwnd, ssthresh });
         snaps.push({
           step: 'loss', ...state(), rtt: t, cwndBefore, cwndAfter: cwnd, phase: lossType === 'timeout' ? 'loss-timeout' : 'loss-3dup',
           lossAt: atLoss, oldSsthresh: null,
@@ -167,12 +177,20 @@ RC408.registerModule({
   /* ---------------- ③ 纯渲染 ---------------- */
   render(ctx) {
     const { snap: s, stage } = ctx;
-    const pts = s.history;
-    const n = pts.length || 1;
+    /* ★ 窗24 修两处图面口径（用户 2026-09-25 报"慢启动怎么从 2 开始"）：
+       ① **把起点画出来**：慢启动从 cwnd = 1 起（RTT 0），教材图就是 1 → 2 → 4 …；
+          原来只画"每个 RTT 结束后的值"，于是曲线第一点是 2，看着像"从 2 开始"。
+       ② **x 轴按总时长 `rtts` 定标**（原来按 `history.length`，每走一步整条曲线都会左移重排，越走越挤）。 */
+    const hist = s.history;
+    const curRtt = hist.length ? hist[hist.length - 1].rtt : -1;
+    const pts = hist.length ? [{ rtt: 0, cwnd: 1, phase: 'slow', loss: null, origin: true }].concat(hist) : hist;
+    const axisMax = Math.max(s.rtts || 0, hist.length, 8);
+    const n = axisMax;
     const maxCwnd = Math.max(...pts.map(p => p.cwnd), s.ssthresh, 4) + 2;
     const W = 720, H = 400, padL = 46, padB = 34, padT = 18, padR = 16;
-    const px = r => padL + ((r - 0.5) / Math.max(n, 8)) * (W - padL - padR);
+    const px = r => padL + (r / n) * (W - padL - padR);
     const py = c => H - padB - ((c - 0.5) / Math.max(maxCwnd, 8)) * (H - padB - padT);
+    const xStep = Math.max(Math.round(n / 12), 1);   // 必须在 dots 之前算好（dots 里要用它决定"哪些点标数字"）
 
     /* 阶段背景分带（当前阈值线） */
     const ssthreshY = py(s.ssthresh);
@@ -189,14 +207,13 @@ RC408.registerModule({
     const lineSvg = pts.length > 1 ? `<path d="${path}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linejoin="round"/>` : '';
 
     const dots = pts.map(p => {
-      const lossColor = p.loss === 'timeout' ? '#e11d48' : p.phase === 'loss-3dup' ? '#e11d48' : null;
       const color = p.loss ? '#e11d48' : p.phase === 'slow' ? '#f59e0b' : '#059669';
-      const isCur = p.rtt === pts.length;
+      const isCur = p.rtt === curRtt;
       return `
         ${p.loss ? `<text x="${px(p.rtt)}" y="${py(p.cwnd) - 14}" text-anchor="middle" style="font:800 13px sans-serif" fill="#e11d48">✕</text>
-        <text x="${px(p.rtt)}" y="${py(p.cwnd) + 20}" text-anchor="middle" style="font:700 9.5px sans-serif" fill="#e11d48">${p.loss === 'timeout' ? '超时→1' : '快恢复→' + p.after}</text>` : ''}
-        <circle cx="${px(p.rtt)}" cy="${py(p.cwnd)}" r="${isCur ? 5.5 : 3.5}" fill="${color}" ${isCur ? 'stroke="#fff" stroke-width="2"' : ''}/>
-        ${p.rtt % Math.max(Math.round(n / 12), 1) === 0 || isCur || p.loss ? `<text x="${px(p.rtt)}" y="${py(p.cwnd) - 6}" text-anchor="middle" style="font:600 9.5px Consolas,monospace" fill="#475569">${p.cwnd}</text>` : ''}`;
+        <text x="${px(p.rtt)}" y="${py(p.cwnd) + 20}" text-anchor="middle" style="font:700 9.5px sans-serif" fill="#e11d48">${p.loss === 'timeout' ? '超时→' + p.after : '快恢复→' + p.after}</text>` : ''}
+        <circle cx="${px(p.rtt)}" cy="${py(p.cwnd)}" r="${isCur ? 5.5 : 3.5}" fill="${color}" ${isCur ? 'stroke="#fff" stroke-width="2"' : ''} data-rtt="${p.rtt}" data-cwnd="${p.cwnd}"${p.origin ? ' data-origin="1"' : ''}${p.loss ? ' data-loss="' + p.loss + '"' : ''}${isCur ? ' data-cur="1"' : ''}/>
+        ${(p.rtt % xStep === 0 || isCur || p.loss || p.origin) ? `<text x="${px(p.rtt)}" y="${py(p.cwnd) - 6}" text-anchor="middle" style="font:600 9.5px Consolas,monospace" fill="#475569">${p.cwnd}</text>` : ''}`;
     }).join('');
 
     /* 坐标轴刻度 */
@@ -206,9 +223,7 @@ RC408.registerModule({
       yTicks.push(`<line x1="${padL}" y1="${py(c)}" x2="${W - padR}" y2="${py(c)}" stroke="#f1f5f9"/><text x="${padL - 6}" y="${py(c) + 3.5}" text-anchor="end" style="font:600 10px Consolas" fill="#94a3b8">${c}</text>`);
     }
     const xTicks = [];
-    const xStep = Math.max(Math.round(n / 12), 1);
-    for (let r = xStep; r <= n; r += xStep) {
-      xTicks.push(`<text x="${px(r)}" y="${H - padB + 16}" text-anchor="middle" style="font:600 10px Consolas" fill="#94a3b8">${r}</text>`);
+    for (let r = xStep; r <= n; r += xStep) {      xTicks.push(`<text x="${px(r)}" y="${H - padB + 16}" text-anchor="middle" style="font:600 10px Consolas" fill="#94a3b8">${r}</text>`);
     }
 
     const chartSvg = `

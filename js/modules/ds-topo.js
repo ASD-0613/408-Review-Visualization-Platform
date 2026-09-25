@@ -78,8 +78,19 @@ RC408.registerModule({
     while (outSeq.length < nodes.length) {
       const avail = nodes.filter(n => !outSeq.includes(n) && inDeg[n] === 0);
       if (!avail.length) {
+        const stuck = nodes.filter(n => !outSeq.includes(n));
         push('cycle', { log: `无可输出顶点（所有剩余顶点入度 > 0）→ 图中存在**回路**，不是 DAG，拓扑排序失败，AOE 分析无法进行。`, logType: 'error',
           desc: '存在回路，拓扑排序失败' });
+        /* ★ 窗24 补：回路示例原来只有 init + cycle 两帧（界面显示"步骤 0 / 1"，看着像坏了）。
+           再给一帧收尾：点名卡住的顶点与它们的入度，并说清"为什么这就是回路"。 */
+        push('cycle-done', {
+          inDeg: { ...inDeg },
+          log: `结论：剩余顶点 ${stuck.join('、')} 的入度全部 > 0（${stuck.map(n => n + '=' + inDeg[n]).join('，')}）——`
+            + '每个顶点都在等别人先被输出，这种"互相等待"就是回路（本示例 v1 → v2 → v3 → v1）。'
+            + '考场结论：**有向图能拓扑排序 ⟺ 图中不存在回路**。',
+          logType: 'error',
+          desc: `回路 = ${stuck.join('→')}：入度永远降不到 0`,
+        });
         return snaps;
       }
       avail.sort().forEach(u => {
