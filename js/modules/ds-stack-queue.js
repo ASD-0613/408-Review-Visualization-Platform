@@ -43,13 +43,19 @@ RC408.registerModule({
 
   quickActions: [
     { label: '非法序列示例', run(rt) { rt.setInput('pop', 'e,a,b,c,d'); rt.load(); } },
-    { label: '2026 真题风格 n=9', run(rt) { rt.setInput('push', '1,2,3,4,5,6,7,8,9'); rt.setInput('pop', '4,3,5,6,2,8,7,9,1'); rt.load(); } },
+    /* ★ 窗24 修正两处（用户 2026-09-25 报"预设点一下就报错/只有一步"）：
+       ① 上限 8 → 12：**2026-42 真题就是 n = 9**（考情缓存 2026_解析.txt:713-724 原文：
+          "将序列 1,2,3,…,n 依次入栈，…(1) 当 n=9 时，能否得到出栈序列 {2,3,1,6,4,7,5,9,8}？…"），旧上限把它挡在门外；
+       ② 原来那条预览序列（4,3,5,6,2,8,7,9,1）是**自己编的**却挂着"2026 真题风格"的名字 ⟹
+          现在直接给真题的两个序列（一个不能、一个能），并把年份题号写进 label。 */
+    { label: '📌 2026-42 真题：{2,3,1,6,4,7,5,9,8} → 不能', run(rt) { rt.setInput('push', '1,2,3,4,5,6,7,8,9'); rt.setInput('pop', '2,3,1,6,4,7,5,9,8'); rt.load(); } },
+    { label: '📌 2026-42 真题：{2,3,1,5,6,7,4,9,8} → 能', run(rt) { rt.setInput('push', '1,2,3,4,5,6,7,8,9'); rt.setInput('pop', '2,3,1,5,6,7,4,9,8'); rt.load(); } },
   ],
 
   parse(vals) {
     const toks = s => vals[s].split(/[^0-9a-zA-Z]+/).filter(Boolean);
     const push = toks('push'), pop = toks('pop');
-    if (push.length < 3 || push.length > 8) throw { message: '入栈序列 3 ~ 8 个元素' };
+    if (push.length < 3 || push.length > 12) throw { message: '入栈序列 3 ~ 12 个元素（2026-42 真题用的是 n = 9）' };
     if (pop.length !== push.length) throw { message: '出栈序列长度必须与入栈序列相同' };
     const ps = [...push].sort().join(',');
     const qs = [...pop].sort().join(',');

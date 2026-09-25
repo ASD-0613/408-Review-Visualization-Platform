@@ -92,6 +92,16 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 .topic .dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
 .topic-wip { color: #94a3b8; }
 .topic-wip:hover { background: #f8fafc; }
+/* 纯理论速记卡（status:'theory'）：**内容已完成**，视觉上与"✓ 可交互"齐平——
+   标题用正常黑字（.topic 默认色 #475569 偏灰，这里压深），圆点用**浅蓝**区别于可交互的绿点。
+   用户 2026-09-25 两次调色：先要"灰点改蓝点"，再指出"蓝点太蓝了，改成这种蓝"并附了徽标截图。
+   圆点色**从那张截图的真实像素里采出来**（`node tmp_sample_color.js tmp_badge.png`）：
+     徽标底色 #e0f2fe（sky-100）、文字 #0369a1（sky-700）、抗锯齿中间色 #25a9e3
+     ⟹ 同一个蓝家族，7px 圆点取**中档 sky-500 #0ea5e9**（sky-100 太浅、在 7px 上等于看不见；
+       sky-700 又太深，就回到用户说的"太蓝"）。
+   与 §1.5"已完工内容绝不显示敬请期待"同源：已完工的不做视觉弱化、但也不该抢过交互项。 */
+.topic-theory { color: #1e293b; }
+.topic-theory .dot-theory { background: #0ea5e9; }
 .wip-badge {
   margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px;
   background: #f1f5f9; color: #94a3b8; flex-shrink: 0;
@@ -227,6 +237,19 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 .chip-cur   { border-color: #6366f1; color: #4338ca; box-shadow: 0 0 0 3px rgba(99,102,241,.25); transform: scale(1.1); }
 .chip-future { background: #f8fafc; color: #cbd5e1; border-color: #f1f5f9; }
 
+/* ---------------- 外部排序模块（ds-extsort，窗25）的容器布局 ----------------
+   ⚠ 为什么写进 style.css 而不是只用 Tailwind 工具类：**离线 harness（本机无外网）不加载 Tailwind CDN**，
+   于是 `flex flex-wrap gap-1` 这些类全部失效 ⟹ 色块会竖排成"一列"（窗23 在分布条上踩过同一个坑）。
+   本模块的元素组（输入流 / 内存槽位 / 各段剩余 / 归一化输出）都靠这几条撑开，
+   写成纯 CSS 后**离线与联网表现一致**，断言与截图才有稳定几何。 */
+.ex-in, .ex-slots, .ex-runs, .ex-out, .ex-cols, .ex-tnodes {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.ex-runs > div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; width: 100%; }
+.ex-cols > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+.ex-slot { min-width: 46px; justify-content: center; }
+.ex-tnode-g text { pointer-events: none; }
+
 /* ---------------- 数据表 ---------------- */
 .tbl { border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
 .tbl th, .tbl td {
@@ -250,6 +273,23 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 .log-error   .log-msg { color: #fda4af; }
 
 /* ---------------- 理论区 Markdown 排版 ---------------- */
+/* ---- 离线数学兜底渲染（窗22 立；配合 framework.js 的 RC408.mathFallback）----
+   只用原生 MathML 的 <mfrac>/<msub>/<msup>/<munderover>，**不依赖任何字体文件、
+   不依赖 KaTeX**——KaTeX 在 CDN 上，本机实测连不上（net::ERR_CONNECTION_CLOSED），
+   而旧代码在 KaTeX 缺失时"静默跳过"，理论区就把 `\frac{L}{R}` 原样显示给用户。
+   这几条只管"KaTeX 不在场"时的观感：在线时这些类根本不会被创建。 */
+.md-math {
+  font-family: "Cambria Math", "Latin Modern Math", Cambria, "Times New Roman", "STIX Two Math", serif;
+  font-size: 1.04em; white-space: nowrap;
+}
+.md-math-frac { display: inline-grid; grid-template-rows: auto auto; vertical-align: -0.5em; text-align: center; margin: 0 .12em; }
+.md-math-num { border-bottom: 1px solid currentColor; padding: 0 .28em; line-height: 1.15; }
+.md-math-den { padding: 0 .28em; line-height: 1.15; }
+.md-math-delim { transform: scaleY(1.3); display: inline-block; }   /* ⌊⌋⌈⌉ 像 KaTeX 一样略拉伸 */
+.md-math-op { font-style: normal; margin: 0 .12em; }                /* log / min / bmod 等算子名 */
+/* 未收录命令的兜底显示（正常情况下不该出现；出现即说明有新写法要补进 SYM/OP 表） */
+.md-math-known { color: #94a3b8; font-size: .92em; }
+
 .md-body { font-size: 13.5px; line-height: 1.9; color: #475569; }
 .md-body h2 {
   font-size: 16px; font-weight: 800; color: #1e293b; margin: 1.1em 0 .5em;
@@ -282,6 +322,23 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 .md-body th, .md-body td { border: 1px solid #e2e8f0; padding: 4px 12px; text-align: left; }
 .md-body th { background: #f8fafc; }
 .md-body hr { border: none; border-top: 1px dashed #e2e8f0; margin: 1em 0; }
+
+/* ============================================================================
+   理论区「手动标注」（窗24，用户要求）
+   ★ `.kp-anno` **只写 color、绝不写 font-weight** —— 用户明确要求"粗细和原先一致"：
+     原本在 `**加粗**` 里的字标红后仍是 700（继承 strong），普通文字仍是 400。
+   ★ 按钮样式写在本地 CSS（不靠 Tailwind CDN），离线 harness 截图里也照常可见。
+   ============================================================================ */
+.kp-anno { color: #dc2626; }
+.anno-btn {
+  font-size: 11px; line-height: 1.6; padding: 2px 9px; border-radius: 9999px;
+  border: 1px solid #e2e8f0; background: #fff; color: #475569; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s; white-space: nowrap;
+}
+.anno-btn:hover { border-color: #fca5a5; color: #dc2626; }
+.anno-btn.anno-on { background: #fee2e2; border-color: #f87171; color: #b91c1c; font-weight: 700; }
+.anno-hint { font-size: 11px; font-weight: 400; color: #dc2626; margin-left: 8px; }
+#theory-body.anno-mode { cursor: text; }
 
 /* ---------------- 历年考察分布条（理论区顶部） ---------------- */
 .exam-strip {

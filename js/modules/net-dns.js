@@ -201,6 +201,16 @@ RC408.registerModule({
       desc: `初始状态：主机要把 ${domain} 解析成 IP。当前场景「${sceneName}」——先想清楚这一场里"谁"要向"谁"发查询。`,
     }));
 
+    /* ★ 窗24 补：缓存命中场景原来只有 init + done 两帧（界面显示"步骤 0 / 1"，看着像坏了）。
+       这里插一帧"先查本机缓存"——报文数仍是 **0 条**（这正是该场景要讲的点），只是把过程讲清楚。 */
+    if (scene === 'cache') {
+      snaps.push(frame('cache', 0, {
+        log: `[${sceneName}] 主机先查**本机缓存**：命中 ${domain} → ${ip}（TTL 未过期）`,
+        logType: 'success',
+        desc: '本机缓存命中：一条 DNS 查询都不用发——比问本地域名服务器还快。',
+      }));
+    }
+
     seq.forEach((m, i) => {
       snaps.push(frame('msg', i + 1, {
         log: `[${sceneName}] 第 ${i + 1}/${n} 条报文 ${m.from}→${m.to}：${m.label}`,
