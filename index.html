@@ -4,9 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>考研 408 复习可视化平台</title>
+<!-- 网站图标（窗38）：素材由用户提供（根目录 OIP-C.webp），已做**正方形裁切**存为 favicon.webp
+     （256×256，源图 269×241 从 (14,0) 取 241×241，生成脚本 tmp_t38_favicon.py）。
+     WebP 图标 Chrome / Edge / Firefox 都能用；带 ?v= 是为了绕开浏览器对 favicon 的顽固缓存。 -->
+<link rel="icon" type="image/webp" href="favicon.webp?v=98">
 
-<!-- Tailwind CSS（Play CDN：双击打开即可用，首次加载需联网） -->
+<!-- Tailwind CSS（Play CDN：优先联网取最新；取不到就用仓库内兜底，见下面那段与 §6.2.34⑨） -->
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind 兜底（窗34）：本机浏览器加载 cdn.tailwindcss.com 会报 ERR_CERT_COMMON_NAME_INVALID
+     （证书被网络中间层替换、Chrome/Edge 拒收，而 PowerShell 能下到 ⟹ 不是"没网"）。
+     这里在解析期同步补一份**仓库内的同一版 Play CDN 3.4.16**（js/vendor/，MIT），
+     于是"双击 index.html"在任何网络下都有样式；CDN 正常时这一段零开销（window.tailwind 已存在就不加载）。
+     ⚠ 头尾两行注释是 harness 的摘除锚点（tests 里按它整段删掉，保证离线页面仍是"无 Tailwind"的基线）。 -->
+<script>
+  if (!window.tailwind) document.write('<script src="js/vendor/tailwind-play-3.4.16.js?v=98"><\/script>');
+</script>
+<!-- Tailwind 兜底结束 -->
 <script>
   /* Tailwind 自定义配置：中文字体栈 */
   tailwind.config = {
@@ -26,7 +39,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<link rel="stylesheet" href="css/style.css?v=66">
+<link rel="stylesheet" href="css/style.css?v=98">
 </head>
 
 <body class="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
@@ -36,7 +49,11 @@
   <div class="px-4 py-2.5 flex items-center gap-4 flex-wrap">
     <!-- 平台 Logo / 标题 -->
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-indigo-500 grid place-items-center text-xl shadow-md shadow-indigo-900/50">🎓</div>
+      <!-- 平台图标（窗38）：同一张 favicon.webp（用户提供素材的方形裁切版）。
+           尺寸 / 圆角 / 阴影一律写**内联样式**，这样离线 harness（不加载 Tailwind）与联网表现一致
+           （§4.7「离线也不塌的容器布局」窗26 立的规矩）；外层 flex + gap 不动，故标题行的版式不变。 -->
+      <img id="brand-logo" src="favicon.webp?v=98" alt="考研 408 复习可视化平台图标"
+           style="width:40px;height:40px;border-radius:12px;object-fit:cover;display:block;flex:none;box-shadow:0 4px 6px -1px rgba(49,46,129,.5)">
       <div>
         <h1 class="text-base md:text-lg font-bold tracking-wide">考研 408 复习可视化平台</h1>
         <p class="text-[11px] text-indigo-200/70 leading-tight">数据结构 · 计算机组成原理 · 操作系统 · 计算机网络</p>
@@ -64,10 +81,10 @@
 
   <!-- ======================= 专注模式（目录隐藏：左栏操作 / 右栏图像反馈） ======================= -->
 
-    <div class="px-4 pt-4 pb-2 text-xs font-bold text-slate-400 tracking-widest border-b border-slate-100">📚 知识点目录</div>
+    <div id="catalog-title" class="px-4 pt-4 pb-2 text-xs font-bold text-slate-400 tracking-widest border-b border-slate-100">📚 知识点目录</div>
     <nav id="sidebar" class="flex-1 overflow-y-auto pb-6"></nav>
-    <div class="px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
-      绿点 = 可交互可视化<br>🔥 = 考频高的重点（建议中）<br>考纲外 = 真题曾考、现行考纲已删<br>其余灰色 = 建设中，点击可看规划
+    <div id="catalog-hint" class="px-4 py-3 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
+      绿点 = 可交互可视化<br>🔥🔥 = 最热考点（热门排行榜前 15）<br>🔥 = 考频高的重点（建议中）<br>考纲外 = 真题曾考、现行考纲已删<br>其余灰色 = 建设中，点击可看规划
     </div>
   </aside>
   <aside id="control-pane" class="hidden w-[400px] shrink-0 bg-slate-50 border-r border-slate-200 flex-col">
@@ -87,6 +104,13 @@
     <div id="fp-log" class="shrink-0 max-h-52 overflow-y-auto border-t border-slate-300"></div>
   </section>
 
+  <!-- ======================= 真题总览（题目-模块索引）页 =======================
+       窗41 新增：顶部页签「🧭 真题总览」排在最左（在「数据结构」左边），点某道题对应的
+       方块即跳转到演示该考点的模块。默认仍打开【数据结构】的第一个模块，本页只被页签激活。
+       内容由 js/index-page.js 填充；布局与配色全在 css/style.css 的 .ix-* 里
+       （**不用 Tailwind 工具类**——离线 harness 不加载 Tailwind，用工具类会让离线与联网不同形）。 -->
+  <section id="exam-index-section" class="hidden flex-1 min-w-0"></section>
+
   <!-- 右侧主展示区 -->
   <section id="main-section" class="flex-1 min-w-0 overflow-y-auto">
     <div class="max-w-6xl mx-auto p-4 md:p-6 space-y-4 pb-16">
@@ -99,12 +123,13 @@
         <div class="flex items-center justify-between px-5 py-3 cursor-pointer select-none" id="theory-toggle">
           <div class="flex items-center gap-2 font-bold text-slate-700">
             <span>📖</span><span>理论知识</span>
-            <!-- 窗24：标注模式提示（开启时显示；按钮与提示都写在本地 CSS 里，离线也可见） -->
-            <span id="anno-hint" class="anno-hint hidden">标注模式：拖选文字变红，再选一次恢复</span>
+            <!-- 窗24：标注模式提示（开启时显示；按钮与提示都写在本地 CSS 里，离线也可见）
+                 窗26：加了一键开关的键盘快捷键（A），提示里写明怎么退出 -->
+            <span id="anno-hint" class="anno-hint hidden">标注模式：拖选文字变红，再选一次恢复 · 按 A 键退出</span>
           </div>
           <div class="flex items-center gap-2">
             <button id="anno-clear" class="anno-btn hidden" title="清空本知识点的全部标注（两击确认）">清空本卡</button>
-            <button id="anno-toggle" class="anno-btn" title="开启 / 关闭标注模式：拖选文字变红，红色文字再选一次恢复">✏️ 标注</button>
+            <button id="anno-toggle" class="anno-btn" title="开启 / 关闭标注模式（快捷键 A）：拖选文字变红，红色文字再选一次恢复">✏️ 标注 (A)</button>
             <span id="theory-arrow" class="text-slate-400 text-sm transition-transform">▼</span>
           </div>
         </div>
@@ -159,61 +184,76 @@
 </div>
 
 <!-- ======================= 脚本（普通 script 标签，file:// 协议可直接运行） ======================= -->
-<script src="js/framework.js?v=66"></script>          <!-- 核心框架：Runner / 控制面板 / Markdown / 日志 -->
-<script src="js/exam-history.js?v=66"></script>   <!-- 各模块历年考察数据（考情条数据源，须在 framework 之后） -->
-<script src="js/annotate.js?v=66"></script>       <!-- 理论区手动标注（点「✏️ 标注」开启，拖选文字变红，须在 framework 之后、app 之前） -->
-<script src="js/modules/ds-kruskal.js?v=66"></script>    <!-- 数据结构：Kruskal 最小生成树 -->
-<script src="js/modules/ds-prim.js?v=66"></script>    <!-- 数据结构：Prim 最小生成树（顶点扩张 + 与 Kruskal 双栏对照） -->
-<script src="js/modules/ds-bintree.js?v=66"></script>    <!-- 数据结构：二叉树的遍历 -->
-<script src="js/modules/ds-stack-queue.js?v=66"></script>
-<script src="js/modules/ds-expression.js?v=66"></script>    <!-- 数据结构：中缀转后缀与后缀求值 -->
-<script src="js/modules/ds-binsearch.js?v=66"></script>    <!-- 数据结构：折半查找与判定树 -->
-<script src="js/modules/ds-sort.js?v=66"></script>    <!-- 数据结构：排序算法全家桶 -->
-<script src="js/modules/ds-extsort.js?v=66"></script>    <!-- 数据结构：外部排序（初始归并段 / 败者树 / 最佳归并树） -->
-<script src="js/modules/net-subnet.js?v=66"></script>     <!-- 计算机网络：IPv4 与子网划分 -->
-<script src="js/modules/os-lru.js?v=66"></script>        <!-- 操作系统：LRU 页面置换 -->
-<script src="js/modules/os-vm.js?v=66"></script>         <!-- 操作系统：页式虚拟内存 · 地址转换 -->
-<script src="js/modules/os-pv.js?v=66"></script>        <!-- 操作系统：PV 操作 -->
-<script src="js/modules/os-procstate.js?v=66"></script>      <!-- 操作系统：进程五态转换 -->
-<script src="js/modules/os-disk-sched.js?v=66"></script>      <!-- 操作系统：磁盘调度 SSTF/SCAN/C-SCAN -->
-<script src="js/modules/os-file-alloc.js?v=66"></script>      <!-- 操作系统：文件物理结构与混合索引 -->
-<script src="js/modules/coa-cache-assoc.js?v=66"></script> <!-- 计组：组相联与全相联映射 -->
-<script src="js/modules/coa-cache-direct.js?v=66"></script>      <!-- 计组：Cache 直接映射 -->
-<script src="js/modules/coa-addressing.js?v=66"></script> <!-- 计组：指令寻址方式 -->
-<script src="js/modules/coa-fixadd.js?v=66"></script> <!-- 计组：补码加减与溢出判断 -->
-    <script src="js/modules/coa-baseconv.js?v=66"></script>    <!-- 计组：进位计数制与转换（R 进制互转） -->
-    <script src="js/modules/coa-muldiv.js?v=66"></script>    <!-- 计组：乘除运算电路（原码一位乘 / 加减交替除法） -->
-<script src="js/modules/coa-float754.js?v=66"></script><!-- 计组：IEEE 754 浮点数 -->
-<script src="js/modules/coa-floatadd.js?v=66"></script><!-- 计组：浮点数加减（对阶/规格化/舍入） -->
-<script src="js/modules/net-tcp-conn.js?v=66"></script>        <!-- 计算机网络：TCP 连接建立与释放 -->
-<script src="js/modules/net-tcp-cc.js?v=66"></script> <!-- 计算机网络：TCP 拥塞控制 -->
-<script src="js/modules/ds-huffman.js?v=66"></script>
-<script src="js/modules/ds-dijkstra.js?v=66"></script>
-<script src="js/modules/ds-hash.js?v=66"></script>
-<script src="js/modules/ds-btree.js?v=66"></script>    <!-- 数据结构：B 树与 B+ 树 -->
-<script src="js/modules/ds-bst-avl.js?v=66"></script>    <!-- 数据结构：二叉排序树与 AVL 旋转 -->
-<script src="js/modules/ds-heap.js?v=66"></script>    <!-- 数据结构：堆与优先队列（完全二叉树 ⇄ 数组双视角） -->
-<script src="js/modules/coa-mainmem.js?v=66"></script>    <!-- 计组：主存与 CPU 连接（存储器芯片扩展） -->
-<script src="js/modules/ds-kmp.js?v=66"></script>
-<script src="js/modules/ds-topo.js?v=66"></script>
-<script src="js/modules/ds-dfs-bfs.js?v=66"></script>    <!-- 数据结构：图的遍历 DFS / BFS -->
-<script src="js/modules/os-sched.js?v=66"></script>
-<script src="js/modules/os-deadlock.js?v=66"></script>
-<script src="js/modules/net-crc.js?v=66"></script>
-<script src="js/modules/net-window.js?v=66"></script>
-<script src="js/modules/net-shannon.js?v=66"></script>
-<script src="js/modules/net-dns.js?v=66"></script>    <!-- 计算机网络：DNS 域名解析过程（递归 / 迭代 / 缓存） -->
-<script src="js/modules/net-http.js?v=66"></script>    <!-- 计算机网络：HTTP 请求与持久连接（三种连接的 RTT 计数） -->
-<script src="js/modules/net-mail.js?v=66"></script>    <!-- 计算机网络：电子邮件与 FTP（SMTP 推 / POP3·IMAP 拉 / FTP 双连接） -->
-<script src="js/modules/net-switch.js?v=66"></script>    <!-- 计算机网络：以太网交换机自学习（转发表 / 泛洪 / 过滤丢弃） -->
-<script src="js/modules/net-routing.js?v=66"></script>    <!-- 计算机网络：路由算法与协议（RIP 距离向量 / OSPF 链路状态） -->
-<script src="js/modules/net-csma.js?v=66"></script>    <!-- 计算机网络：CSMA/CD 与最小帧长（争用期 / 冲突检测 / 指数退避 / CSMA/CA） -->
-<script src="js/modules/net-fragment.js?v=66"></script>    <!-- 计算机网络：IP 分片与重组（MTU / 片偏移 / MF，即时计算器） -->
-<script src="js/modules/coa-perf.js?v=66"></script>
-<script src="js/modules/coa-io.js?v=66"></script>
-<script src="js/modules/coa-disk.js?v=66"></script>
-<script src="js/modules/coa-pipeline.js?v=66"></script>
-<script src="js/app.js?v=66"></script>                <!-- 四本书目录树 + 导航 + 启动 -->
+<script src="js/framework.js?v=98"></script>          <!-- 核心框架：Runner / 控制面板 / Markdown / 日志 -->
+<script src="js/exam-history.js?v=98"></script>
+<script src="js/exam-index-data.js?v=98"></script> <!-- 真题总览：每年卷面出现过哪些题号（窗41；生成器 tmp_t41_gen.js） -->
+<script src="js/index-page.js?v=98"></script>      <!-- 真题总览（题目-模块索引）页：点方块跳模块（窗41） -->   <!-- 各模块历年考察数据（考情条数据源，须在 framework 之后） -->
+<script src="js/annotate.js?v=98"></script>       <!-- 理论区手动标注（点「✏️ 标注」开启，拖选文字变红，须在 framework 之后、app 之前） -->
+<script src="js/modules/ds-complexity.js?v=98"></script>    <!-- 数据结构：算法时间复杂度分析（逐行执行次数 f(n)，窗30） -->
+<script src="js/modules/ds-linkedlist.js?v=98"></script>    <!-- 数据结构：单链表的操作与算法设计（指针手术 + 双指针 / 共同后缀 / 重排 L′，窗28 建、窗34 扩充） -->
+<script src="js/modules/ds-dlink.js?v=98"></script>    <!-- 数据结构：双链表与循环链表（prior/next 双向接链 / 尾指针维护，窗33） -->
+<script src="js/modules/ds-kruskal.js?v=98"></script>    <!-- 数据结构：Kruskal 最小生成树 -->
+<script src="js/modules/ds-prim.js?v=98"></script>    <!-- 数据结构：Prim 最小生成树（顶点扩张 + 与 Kruskal 双栏对照） -->
+<script src="js/modules/ds-bintree.js?v=98"></script>    <!-- 数据结构：二叉树的遍历 -->
+<script src="js/modules/ds-tree-forest.js?v=98"></script>    <!-- 数据结构：树、森林与二叉树的转换（左孩子右兄弟，窗36） -->
+<script src="js/modules/ds-stack-queue.js?v=98"></script>
+<script src="js/modules/ds-expression.js?v=98"></script>    <!-- 数据结构：中缀转后缀与后缀求值 -->
+<script src="js/modules/ds-binsearch.js?v=98"></script>    <!-- 数据结构：折半查找与判定树 -->
+<script src="js/modules/ds-blocksearch.js?v=98"></script>    <!-- 数据结构：分块查找（索引顺序查找，窗26） -->
+<script src="js/modules/ds-sort.js?v=98"></script>    <!-- 数据结构：排序算法全家桶 -->
+<script src="js/modules/ds-extsort.js?v=98"></script>    <!-- 数据结构：外部排序（初始归并段 / 败者树 / 最佳归并树） -->
+<script src="js/modules/ds-radix.js?v=98"></script>    <!-- 数据结构：基数排序（按位分配 / 收集，窗26） -->
+<script src="js/modules/net-subnet.js?v=98"></script>     <!-- 计算机网络：IPv4 与子网划分 -->
+<script src="js/modules/os-lru.js?v=98"></script>        <!-- 操作系统：LRU 页面置换 -->
+<script src="js/modules/os-vm.js?v=98"></script>         <!-- 操作系统：页式虚拟内存 · 地址转换 -->
+<script src="js/modules/os-pv.js?v=98"></script>        <!-- 操作系统：PV 操作 -->
+<script src="js/modules/os-procstate.js?v=98"></script>      <!-- 操作系统：进程五态转换 -->
+<script src="js/modules/os-disk-sched.js?v=98"></script>      <!-- 操作系统：磁盘调度 SSTF/SCAN/C-SCAN -->
+<script src="js/modules/os-file-alloc.js?v=98"></script>      <!-- 操作系统：文件物理结构与混合索引 -->
+<script src="js/modules/coa-cache-assoc.js?v=98"></script> <!-- 计组：组相联与全相联映射 -->
+<script src="js/modules/coa-cache-direct.js?v=98"></script>      <!-- 计组：Cache 直接映射 -->
+<script src="js/modules/coa-addressing.js?v=98"></script> <!-- 计组：指令寻址方式 -->
+<script src="js/modules/coa-inst-format.js?v=98"></script> <!-- 计组：指令格式与扩展操作码（字段拆位 + 扩展操作码扣除法，窗35） -->
+<script src="js/modules/coa-fixadd.js?v=98"></script> <!-- 计组：补码加减与溢出判断 -->
+    <script src="js/modules/coa-baseconv.js?v=98"></script>    <!-- 计组：进位计数制与转换（R 进制互转） -->
+    <script src="js/modules/coa-muldiv.js?v=98"></script>    <!-- 计组：乘除运算电路（原码一位乘 / 加减交替除法） -->
+<script src="js/modules/coa-float754.js?v=98"></script><!-- 计组：IEEE 754 浮点数 -->
+<script src="js/modules/coa-floatadd.js?v=98"></script><!-- 计组：浮点数加减（对阶/规格化/舍入） -->
+<script src="js/modules/net-tcp-conn.js?v=98"></script>        <!-- 计算机网络：TCP 连接建立与释放 -->
+<script src="js/modules/net-tcp-cc.js?v=98"></script> <!-- 计算机网络：TCP 拥塞控制 -->
+<script src="js/modules/ds-huffman.js?v=98"></script>
+<script src="js/modules/ds-dijkstra.js?v=98"></script>
+<script src="js/modules/ds-hash.js?v=98"></script>
+<script src="js/modules/ds-btree.js?v=98"></script>    <!-- 数据结构：B 树与 B+ 树 -->
+<script src="js/modules/ds-bst-avl.js?v=98"></script>    <!-- 数据结构：二叉排序树与 AVL 旋转 -->
+<script src="js/modules/ds-heap.js?v=98"></script>    <!-- 数据结构：堆与优先队列（完全二叉树 ⇄ 数组双视角） -->
+<script src="js/modules/coa-mainmem.js?v=98"></script>    <!-- 计组：主存与 CPU 连接（存储器芯片扩展） -->
+<script src="js/modules/coa-mainmem-pins.js?v=98"></script>    <!-- 计组：主存芯片引脚与交叉编址（行列地址复用取 max + 多体交叉编址，窗43） -->
+<script src="js/modules/ds-kmp.js?v=98"></script>
+<script src="js/modules/ds-topo.js?v=98"></script>
+<script src="js/modules/ds-graph-storage.js?v=98"></script>    <!-- 数据结构：图的存储（邻接矩阵 / 邻接表 / 十字链表 / 邻接多重表，窗31 建、窗40 链视图按 2024-4 卷面重做） -->
+<script src="js/modules/ds-dfs-bfs.js?v=98"></script>    <!-- 数据结构：图的遍历 DFS / BFS -->
+<script src="js/modules/os-sched.js?v=98"></script>
+<script src="js/modules/os-deadlock.js?v=98"></script>
+<script src="js/modules/net-crc.js?v=98"></script>
+<script src="js/modules/net-window.js?v=98"></script>
+<script src="js/modules/net-shannon.js?v=98"></script>
+<script src="js/modules/net-dns.js?v=98"></script>    <!-- 计算机网络：DNS 域名解析过程（递归 / 迭代 / 缓存） -->
+<script src="js/modules/net-http.js?v=98"></script>    <!-- 计算机网络：HTTP 请求与持久连接（三种连接的 RTT 计数） -->
+<script src="js/modules/net-mail.js?v=98"></script>    <!-- 计算机网络：电子邮件与 FTP（SMTP 推 / POP3·IMAP 拉 / FTP 双连接） -->
+<script src="js/modules/net-switch.js?v=98"></script>    <!-- 计算机网络：以太网交换机自学习（转发表 / 泛洪 / 过滤丢弃） -->
+<script src="js/modules/net-routing.js?v=98"></script>    <!-- 计算机网络：路由算法与协议（RIP 距离向量 / OSPF 链路状态） -->
+<script src="js/modules/net-csma.js?v=98"></script>    <!-- 计算机网络：CSMA/CD 与最小帧长（争用期 / 冲突检测 / 指数退避 / CSMA/CA） -->
+<script src="js/modules/net-fragment.js?v=98"></script>    <!-- 计算机网络：IP 分片与重组（MTU / 片偏移 / MF，即时计算器） -->
+<script src="js/modules/coa-perf.js?v=98"></script>
+<script src="js/modules/coa-io.js?v=98"></script>
+<script src="js/modules/coa-disk.js?v=98"></script>
+<script src="js/modules/coa-pipeline.js?v=98"></script>
+<script src="js/modules/coa-datapath.js?v=98"></script>    <!-- 计组：数据通路与指令执行（单总线 CPU 逐拍微操作） -->
+<script src="js/modules/coa-interrupt.js?v=98"></script>    <!-- 计组：异常与中断机制（中断隐指令 / 故障·自陷 / 多重中断） -->
+<script src="js/modules/coa-assembly.js?v=98"></script>    <!-- 计组：高级语言 ↔ 机器级代码（C → 汇编 → 机器码 逐句对照执行） -->
+        <script src="js/modules/coa-cisc-risc.js?v=98"></script>    <!-- 计组：CISC 与 RISC 对比（同一段程序的双栏指令序列 + 判据裁决，窗32） -->
+<script src="js/app.js?v=98"></script>                <!-- 四本书目录树 + 导航 + 启动 -->
 
 <script>
   /* Tailwind CDN 离线检测 */

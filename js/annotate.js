@@ -6,6 +6,12 @@
  *   文本，**松开左键**后选中的文字变红；**红色文字被再选一次则恢复原色**（开关式）。
  *   另有一个「清空标注」（两击确认）入口，清空**当前知识点**的全部标注。
  *
+ * ★ 键盘快捷键（窗26 新增，用户要求"一键打开或关闭"）：**按 `A` 键 = 点一次「✏️ 标注」按钮**。
+ *   两条路径共用同一个 `toggle()` ⟹ 行为不可能漂移；开启时若理论区是折叠态，会**顺手展开一次**
+ *   （否则"模式开了却选不了字"）。守卫写在纯函数 `isToggleKey()` 里（Node 冒烟直接测真值表）：
+ *   带 Ctrl / Meta / Alt 的不算、输入控件 / contenteditable 里不算、输入法组字中不算、长按重复不算。
+ *   ⚠ 它**只管"开关模式"**，不代替鼠标拖选——**键盘 Shift+方向键选择仍不支持**（见下"已知边界"）。
+ *
  * ★ 数据模型（唯一事实源，存 localStorage 的 `rc408.anno.v1`）：
  *     { '<知识点id>': [ { b, s, e }, ... ] }
  *   · b = `#theory-body` **直接子元素**的下标（**跳过 `.exam-strip` 分布条**，它不参与标注）
@@ -26,7 +32,8 @@
  *
  * ⚠ 已知边界（都写进手册，别当 bug）：
  *   · 分布条（`.exam-strip`）与公式（`.katex` / `.md-math`）**标不上**——拖过它们时那一段跳过；
- *   · 触屏点选不产生 `mouseup`-选区，故不生效（键盘 Shift 选择同理，本版不做）；
+ *   · 触屏点选不产生 `mouseup`-选区，故不生效（**键盘 Shift+方向键选择同理，仍不做**；
+ *     窗26 只补上了"开关模式"的 `A` 键，没有动选区的取得方式）；
  *   · 标注模式**不持久化**（刷新后默认关闭），标注内容持久化；
  *   · `localStorage` 不可用（隐私模式 / 某些 `file://` 策略）时**自动退化为"仅当次会话"**，
  *     读写都 try/catch 兜底，绝不抛错打断渲染。
@@ -286,7 +293,7 @@ RC408.anno = (function () {
     const hint = el('anno-hint');
     const btn = el('anno-toggle');
     if (btn) btn.classList.toggle('anno-on', on);
-    if (btn) btn.textContent = on ? '✏️ 标注中' : '✏️ 标注';
+    if (btn) btn.textContent = on ? '✏️ 标注中 (A)' : '✏️ 标注 (A)';
     if (hint) hint.classList.toggle('hidden', !on);
     const card = el('theory-body');
     if (card) card.classList.toggle('anno-mode', on);
@@ -332,7 +339,7 @@ RC408.anno = (function () {
     if (!btn || btn.dataset.annoBound === '1') return false;
     btn.dataset.annoBound = '1';
     /* 头部整行是"折叠/展开"的点击区 ⟹ 两个按钮都必须 stopPropagation */
-    btn.addEventListener('click', e => { e.stopPropagation(); setOn(!on); });
+    btn.addEventListener('click', e => { e.stopPropagation(); toggle(); });
     const clear = el('anno-clear');
     if (clear) clear.addEventListener('click', e => {
       e.stopPropagation();
@@ -349,9 +356,60 @@ RC408.anno = (function () {
       apply(tid);
     });
     document.addEventListener('mouseup', onMouseUp);
+    /* 窗26：一键开关的键盘绑定（与上面的按钮共用 toggle()） */
+    document.addEventListener('keydown', onKeyDown);
     syncHint();
     syncClear();
     return true;
+  }
+
+  /* ======================= 五、键盘快捷键：一键开关（窗26 新增，用户要求） ======================= */
+
+  /** 事件目标是不是"正在输入"的控件？（在里头按 A 是在打字，不是在开关标注） */
+  function isEditable(t) {
+    if (!t || t.nodeType !== 1) return false;      // 非元素（如 document）不算
+    if (t.isContentEditable) return true;          // 浏览器对 contenteditable 会连祖先一起判
+    const tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!(t.closest && t.closest('[contenteditable="true"]'));
+  }
+
+  /** ★ 这个 keydown 该不该触发"一键开关"？（纯函数，Node 冒烟直接测真值表）
+   *  只认单个 A 键：① 带 Ctrl / Meta / Alt 的一律让给浏览器（**不许抢 `Ctrl+A` 全选**）；
+   *  ② 输入控件 / contenteditable 里不算；③ 输入法组字中不算；④ 长按重复不算（免得一按到底来回翻转）。
+   *  ★ 与框架既有快捷键（→ ← 空格 R，见 `framework.js`）不冲突：那边按 `e.key` 各自分支，
+   *    这里只吃掉 A；两边的"输入控件里不拦"守卫是同一套口径。 */
+  function isToggleKey(e) {
+    if (!e) return false;
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    if (e.isComposing || e.keyCode === 229) return false;   // 输入法组字中的 keydown
+    if (e.repeat) return false;
+    if (String(e.key || '').toLowerCase() !== 'a') return false;
+    return !isEditable(e.target);
+  }
+
+  /** 开启标注时，若理论区处于折叠态就**展开一次**——否则"模式开了却选不了字"。
+   *  ⚠ 折叠状态归 `framework.js` 的 `#theory-toggle` 管，这里**只做单向展开**、不参与折叠决策
+   *    （不做"关模式就折回去"这种对称动作——那会变成第二个状态源）。 */
+  function revealTheory() {
+    const body = el('theory-body');
+    if (body && body.classList.contains('hidden')) {
+      body.classList.remove('hidden');
+      const arrow = el('theory-arrow');
+      if (arrow) arrow.textContent = '▼';
+    }
+  }
+
+  /** 一键开关：按钮与 A 键**共用这一个入口** ⟹ 两条路径的行为不可能漂移 */
+  function toggle() {
+    setOn(!on);
+    if (on) revealTheory();
+  }
+
+  function onKeyDown(e) {
+    if (!isToggleKey(e)) return;
+    if (e.preventDefault) e.preventDefault();   // A 无默认动作；这里只防"插入符浏览"这类边角行为
+    toggle();
   }
 
   const api = {
@@ -364,7 +422,8 @@ RC408.anno = (function () {
     blocks: blocks, textNodes: textNodes, textLen: textLen, offsetOfPoint: offsetOfPoint,
     measure: measure, apply: apply, unwrap: unwrap, wrapRange: wrapRange,
     /* 交互 */
-    init: init, setOn: setOn, isOn: function () { return on; },
+    init: init, setOn: setOn, isOn: function () { return on; }, toggle: toggle,
+    isToggleKey: isToggleKey, isEditable: isEditable, onKeyDown: onKeyDown,
     current: function () { return curId(); },
     syncClear: syncClear,
   };

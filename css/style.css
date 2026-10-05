@@ -78,6 +78,12 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
   background: rgba(99,102,241,.25); color: #e0e7ff;
 }
 .tab-active .tab-badge { background: #eef2ff; color: #4f46e5; }
+/* 真题总览页签（窗41）：排在四大科**左边**，用一条浅色分隔线把"索引页"与"四本书"分开描出来。
+   颜色只改背景/边框，不动 hover / tab-active 那两条公共规则（它们带 !important）。 */
+.tab-index { background: rgba(14,165,233,.16); color: #bae6fd; }
+.tab-index::after { content: ""; display: block; align-self: stretch; width: 1px; margin: -.5rem -.55rem -.5rem .55rem;
+  background: rgba(255,255,255,.22); }
+.tab-index.tab-active { color: #0c4a6e !important; }
 
 /* ---------------- 左侧目录项 ---------------- */
 .topic {
@@ -106,6 +112,48 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
   margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px;
   background: #f1f5f9; color: #94a3b8; flex-shrink: 0;
 }
+/* 一行里出现**两个**徽标时（窗27 第二批：纯理论卡 + 🔥🔥 双火苗），只让第一个吃 auto 左边距。
+   ⚠ 不写这条的话，两个徽标各自 `margin-left:auto` 会把空白**平分**，于是「📖 纯理论」飘在行中间、
+   🔥🔥 贴在右缘，看着像排版坏了（窗27 实测）。
+   判据：`.topic` 内徽标数 ≤ 2；本规则只影响"纯理论 + 火苗"这一类行（其余行只有 0~1 个徽标）。 */
+.wip-badge + .wip-badge { margin-left: 4px; }
+
+/* ---------------- 标题条的「条目 id」标签 + 书签徽标（窗30 新增，用户红箭头指定） ----------------
+   布局（**窗30 第二批，用户看过第一版后要求改的**）：用户原话——"把模块 ID 移到数据结构下面，
+   让这两者的总高度等于右边中文标题的高度（两者视觉上平衡）"。于是：
+     `.topic-badges` = 书签徽标 + 条目 id **两行一组**（竖排），**固定高 36px**；
+     `#topic-header h2` 的 `line-height` 也定成 **36px** ⟹ 左右两个盒子**等高**（判据见下）。
+   ⚠ 为了把两行塞进 36px，两个徽标都收窄了：书签徽标从 Tailwind 的 `text-xs px-2.5 py-1`（实测 26px 高）
+     改成 `.topic-book`（11px / 行高 1.2 / 内边距 1px 7px ≈ 16px），id 标签 10.5px ≈ 16px
+     ⟹ 16 + 2(gap) + 16 = 34 ≤ 36 ✓（**这是"等高"的代价：徽标字号必须比原来小**）。
+   ⚠ **书签徽标改用类而不是 Tailwind 工具类**：它的底色/字色来自各书自己的 `accent`，只能内联；
+     而字号/内边距写进纯 CSS 才能离线（harness 不加载 Tailwind）与联网表现一致——与 `.topic-id`
+     同源（窗25 ds-extsort、窗23 分布条同一个坑）。
+   ⚠ 判据（harness 里逐条断言，见 §6.2.29⑨）：**`.topic-badges` 与 `h2` 的 rect 高度相差 ≤1px**、
+     **id 标签的 top ≥ 书签徽标的 bottom**、且两者都在 h2 之前。 */
+.topic-badges {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 2px; height: 36px; flex-shrink: 0;
+}
+.topic-book {
+  font-size: 11px; line-height: 1.2; font-weight: 700;
+  padding: 1px 7px; border-radius: 6px; white-space: nowrap;
+}
+.topic-id {
+  font: 700 10.5px/1.2 Consolas, ui-monospace, monospace;
+  padding: 1px 7px; border-radius: 5px;
+  background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+/* 标题条那一行的 flex 布局**也用纯 CSS 写死一遍**（值 = Tailwind 的 `flex flex-wrap items-center gap-3`）：
+   ⚠ 动因与窗25 的 ds-extsort 完全一样——**离线 harness 不加载 Tailwind CDN**，工具类全失效
+   ⟹ 标题条退化成"徽标一行、h2 另起一行"，于是"id 标签落在红箭头那个空隙处"这件事
+   **在离线截图里根本看不出来**，几何断言也只能退化成比 DOM 次序（窗30 冒烟实测：
+   离线量到 chip.left=149 / h2.left=8、两者差了一整行；见 §6.2.29⑤）。
+   写成纯 CSS 后离线与联网表现一致，几何断言与裁剪截图才有共同依据。
+   判据：`#topic-header > div` 的 `display` 必须是 flex，且 gap 与 Tailwind 的 gap-3（0.75rem）一致。 */
+#topic-header > div { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#topic-header h2 { line-height: 36px; }
 
 /* ============================================================
    动画关键帧
@@ -430,4 +478,125 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 @keyframes sw-ack-travel {
   from { transform: translateX(var(--tx)); }
   to   { transform: translateX(0); }
+}
+
+/* ============================================================================
+ * 「真题总览（题目-模块索引）」页（窗41 新建）
+ * ----------------------------------------------------------------------------
+ * 布局全部写在这里（**不用 Tailwind 工具类**）——离线 harness 不加载 Tailwind（§3.8-5），
+ * 只用 Tailwind 会让离线截图与联网完全不同形；本页是"年份 × 题号"矩阵，最怕这个。
+ * 配色沿用平台语义：蓝 = 选择题、红 = 大题（与 .ex-sel / .ex-big 同色系），灰 = 当年无此题位。
+ * ========================================================================== */
+#exam-index-section { padding: 24px 28px 64px; overflow-y: auto; min-width: 0; }
+.ix-head { max-width: 1400px; margin: 0 auto 14px; }
+.ix-head-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 18px; }
+.ix-eyebrow { font: 800 11px/1.4 inherit; letter-spacing: .16em; color: #6366f1; }
+.ix-title { font: 800 21px/1.35 inherit; color: #1e293b; margin: 2px 0 4px; }
+.ix-sub { font-size: 12.5px; line-height: 1.75; color: #64748b; max-width: 900px; }
+.ix-sub b { color: #4338ca; }
+.ix-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-left: auto; }
+.ix-lg { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: #64748b; }
+.ix-sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid transparent; }
+.ix-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ix-stat { font-size: 11.5px; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px; padding: 3px 11px; }
+.ix-stat b { font: 800 13px/1 inherit; color: #4338ca; margin-right: 2px; }
+
+.ix-tablewrap { max-width: 1400px; margin: 0 auto; overflow: auto; max-height: calc(100vh - 300px);
+  border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.ix-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
+.ix-table th, .ix-table td { padding: 0; }
+.ix-table thead th { position: sticky; background: #f8fafc; z-index: 3; }
+.ix-table thead tr:nth-child(1) th { top: 0; height: 26px; border-bottom: 1px solid #e2e8f0; }
+.ix-table thead tr:nth-child(2) th { top: 26px; height: 20px; border-bottom: 1px solid #e2e8f0; }
+.ix-corner { left: 0; z-index: 6 !important; width: 84px; min-width: 84px;
+  border-right: 1px solid #e2e8f0; text-align: left; padding-left: 10px !important; }
+.ix-corner-t { font: 800 11px/1 inherit; color: #94a3b8; letter-spacing: .1em; }
+.ix-g { font: 800 11.5px/1 inherit; color: #334155; letter-spacing: .04em; }
+.ix-n { font: 700 9px/1 Consolas, ui-monospace, monospace; color: #94a3b8; }
+.ix-corner + .ix-g, .ix-g { border-left: 1px solid #e2e8f0; }
+.ix-n { border-left: 1px solid #f1f5f9; }
+.ix-row:hover .ix-year { background: #eef2ff; }
+.ix-row:hover .ix-cell { box-shadow: inset 0 0 0 1px #c7d2fe; }
+.ix-year { position: sticky; left: 0; z-index: 2; width: 84px; min-width: 84px; background: #fbfcfe;
+  border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; text-align: left; padding: 3px 8px !important; transition: background .2s; }
+.ix-year-n { display: block; font: 800 12px/1.25 Consolas, ui-monospace, monospace; color: #334155; }
+.ix-year-s { display: block; font-size: 9px; line-height: 1.15; color: #94a3b8; white-space: nowrap; }
+
+.ix-cell { position: relative; height: 22px; text-align: center; vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9; border-left: 1px solid #f8fafc; cursor: pointer;
+  transition: transform .12s, box-shadow .12s, border-color .12s; }
+.ix-cell .ix-num { font: 700 9px/22px Consolas, ui-monospace, monospace; display: block; }
+.ix-sel { background: #e0f2fe; color: #075985; }
+.ix-big { background: #ffe4e6; color: #9f1239; }
+/* 科目专用色：**只给大题那 7 列用**（选择题按题号段就已经分好组，保持一色更干净）。
+   大题逐年科目不同（如 2014 的 T43 是计网、T47 是 OS），靠这里的颜色才分得开。 */
+.ix-cell.ix-big.ix-s-ds  { background: #e0e7ff; color: #3730a3; }
+.ix-cell.ix-big.ix-s-coa { background: #fef3c7; color: #92400e; }
+.ix-cell.ix-big.ix-s-os  { background: #d1fae5; color: #065f46; }
+.ix-cell.ix-big.ix-s-net { background: #ffe4e6; color: #9f1239; }
+.ix-cell.ix-nomod { background: #f8fafc; border: 1px dashed #cbd5e1; }
+.ix-cell.ix-void { background: #f8fafc; border: 1px dashed #e2e8f0; color: #cbd5e1; }
+/* 多条目（同一道题被 ≥2 个条目登记）：加一条**底部粗线**而不是角标 —— 格子只有 25px 宽，
+   右上角写数字会压住题号（窗41 目视实测）。数量写在 title 与浮层标题里。 */
+.ix-cell.ix-multi { box-shadow: inset 0 -3px 0 0 #6366f1; }
+.ix-cell.ix-multi.ix-nomod { box-shadow: none; }
+/* 考纲外（现行考纲已删的考点）：格子中央一个红 ×（用户 2026-10-05 给的样式）。
+   红 × 用内联 SVG 画（不依赖字体字形），**压在题号之上、不改变格子尺寸**，且方块**仍可点击**（点开说明"已删"）。 */
+.ix-cell.ix-legacy { cursor: pointer; }
+.ix-cell.ix-legacy .ix-num { opacity: .38; }
+.ix-cell.ix-legacy .ix-x { position: absolute; left: 50%; top: 50%; width: calc(100% + 2px); height: calc(100% + 2px);
+  /* ★ 窗42 就地改正：原来写 `104%`，注释也自称"104% 就刚好铺满格子"——**是错的**。
+     绝对定位子元素的百分比是相对**包含块 = 内边距盒**算的，而这个格子是 `box-sizing:border-box`
+     且带 1px 虚线边框 ⟹ 104% 只有 23.75px，比外框 24.84px 少 1.09px（判据 `sv.width >= r.width-1`
+     当场红：`boxOK=false`）。改成"内边距盒 + 2px"＝外框，意图与结果才一致（实测 24.84 ≥ 24.84-1 ✔）。 */
+  transform: translate(-50%, -50%); overflow: visible; pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, .9)); }
+.ix-x-sm { width: 11px; height: 11px; vertical-align: -1px; margin: 0 3px 0 1px; }
+.ix-lg .ix-sw.ix-legacy { margin-right: 2px; }
+.ix-pop-bad { color: #be123c; }
+.ix-cell:hover { transform: translateY(-1px); box-shadow: 0 2px 7px rgba(15, 23, 42, .22); z-index: 1; }
+.ix-cell.ix-multi:hover { box-shadow: inset 0 -3px 0 0 #4338ca, 0 2px 7px rgba(15, 23, 42, .22); }
+.ix-cell:focus-visible { outline: 2px solid #6366f1; outline-offset: 1px; }
+.ix-cell.ix-hit { animation: ix-cell-hit 1.4s ease-out; }
+@keyframes ix-cell-hit {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, .85); background: #c7d2fe; }
+  100% { box-shadow: 0 0 0 14px rgba(99, 102, 241, 0); }
+}
+.ix-row.ix-row-hit .ix-year { background: #e0e7ff; }
+
+.ix-pop { position: absolute; z-index: 50; min-width: 190px; max-width: 300px; background: #fff;
+  border: 1px solid #cbd5e1; border-radius: 10px; box-shadow: 0 10px 26px rgba(15, 23, 42, .22); padding: 8px; }
+.ix-pop-h { font: 700 11px/1.5 inherit; color: #475569; padding: 0 2px 6px; border-bottom: 1px solid #f1f5f9; margin-bottom: 5px; }
+.ix-pop-i { display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 8px; margin-bottom: 4px; cursor: pointer; transition: all .15s; }
+.ix-pop-i:last-child { margin-bottom: 0; }
+.ix-pop-i:hover { background: #eef2ff; border-color: #a5b4fc; }
+.ix-pop-t { font: 700 12px/1.4 inherit; color: #1e293b; }
+.ix-pop-b { font-size: 10px; line-height: 1.4; color: #94a3b8; }
+.ix-pop-empty { font-size: 11.5px; line-height: 1.7; color: #64748b; padding: 2px; }
+
+.ix-foot { max-width: 1400px; margin: 12px auto 0; font-size: 11.5px; line-height: 1.85; color: #64748b; }
+.ix-foot p { margin: 0 0 4px; }
+.ix-foot b { color: #475569; }
+.ix-foot-dim { color: #94a3b8; }
+.ix-foot code { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0 4px;
+  font: 600 11px Consolas, ui-monospace, monospace; color: #475569; }
+.ix-dash-sample { display: inline-block; width: 13px; height: 13px; border-radius: 4px; margin: 0 3px;
+  vertical-align: -2px; background: #f8fafc; border: 1px dashed #cbd5e1; }
+.ix-key { width: 12px; height: 12px; vertical-align: -1px; margin: 0 2px 0 0; }
+.ix-key-ds  { background: #e0e7ff; border-color: #a5b4fc; }
+.ix-key-coa { background: #fef3c7; border-color: #fcd34d; }
+.ix-key-os  { background: #d1fae5; border-color: #6ee7b7; }
+.ix-key-net { background: #ffe4e6; border-color: #fda4af; }
+
+/* 打印：索引页整表一张 A3 横排（浏览器"打印 → 背景图形"勾上即可出彩色格） */
+@media print {
+  @page { size: A3 landscape; margin: 6mm; }
+  body { overflow: visible !important; height: auto !important; background: #fff !important; }
+  body * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #catalog-aside, #control-pane, #focus-pane, header, #cdn-warn { display: none !important; }
+  #exam-index-section { display: block !important; overflow: visible !important; padding: 0 !important; }
+  .ix-tablewrap { max-height: none !important; overflow: visible !important; border: none; }
+  .ix-table thead th { position: static; }
+  .ix-year { position: static; }
 }

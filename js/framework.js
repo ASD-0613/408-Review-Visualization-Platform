@@ -239,7 +239,8 @@ const Runner = {
     /* ---- 纯理论考点：完全无法（或无必要）可视化的知识点，渲染为速记卡 ---- */
     const theoryOnly = hit && hit.topic.status === 'theory' && hit.topic.note;
     if (theoryOnly) {
-      this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, 'theory');
+      this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, 'theory', topicId,
+        '本条目 id（纯理论速记卡：文案写在 js/app.js 的 note 里）');
       this.dom.theoryBody.innerHTML = (RC408.examStripHtml(this.def || { id: topicId }) || '') +
         RC408.md(hit.topic.note || '');
       RC408.renderMath(this.dom.theoryBody);
@@ -259,7 +260,8 @@ const Runner = {
       /* ---- 未实现条目：普通的是"敬请期待"占位页；
               带 legacy 字段的是"考纲外"考点（真题曾考、现行考纲已删），用作旧真题的对照标注 ---- */
       const legacy = hit && hit.topic.legacy;
-      this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, legacy ? 'legacy' : true);
+      this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, legacy ? 'legacy' : true, topicId,
+        legacy ? '本条目 id（考纲外条目：在 js/app.js 目录树里）' : '本条目 id（建设中：模块文件待建）');
       this.dom.theoryBody.innerHTML = RC408.md(legacy
         ? `## 已移出现行考纲\n\n${legacy}\n\n> 💡 复习建议：做 2009–2025 旧真题遇到该考点时，作背景知识了解即可，**不必按重点复习**；真题解析年代较早，个别解法以现行教材表述为准。`
         : `## 建设中\n\n该知识点的可视化正在规划中，敬请期待！\n\n` +
@@ -291,7 +293,8 @@ const Runner = {
     }
 
     /* ---- 正式模块 ---- */
-    this.dom.topicHeader.innerHTML = this._headerHtml(this.def.title, hit, false);
+    this.dom.topicHeader.innerHTML = this._headerHtml(this.def.title, hit, false, topicId,
+      '本条目 id（模块注册 id：与 js/app.js 条目、js/exam-history.js 的键同名）');
     // 理论区 = 历年考察分布条（如有数据） + Markdown 正文
     this.dom.theoryBody.innerHTML = RC408.examStripHtml(this.def) + RC408.md(this.def.theory || '');
     RC408.renderMath(this.dom.theoryBody);
@@ -311,9 +314,21 @@ const Runner = {
     this.load();
   },
 
-  /** 标题条 HTML（status: true=建设中占位, 'legacy'=考纲外, false/缺省=可交互） */
-  _headerHtml(title, hit, wip) {
+  /** 标题条 HTML（status: true=建设中占位, 'legacy'=考纲外, false/缺省=可交互）
+   *  窗30 新增 `id` / `tip`：「条目 id」标签（用户红箭头指定，如 `coa-assembly`）。id 就是
+   *  `RC408.modules` 的键、`js/app.js` 目录树的 id、`js/exam-history.js` 的键 —— 三条链路共用
+   *  同一个名字，**全站 97 个条目一律显示**（用户 2026-09-25 拍板），所以三种分支都要把 id 传进来。
+   *  ★ **窗30 第二批（用户看过第一版后要求改）**：id 标签**移到书签徽标下面**，两者竖排成一组
+   *  （`.topic-badges`，固定高 36px），**与右侧 `<h2>` 的 36px 行框等高** —— 用户原话
+   *  "让这两者的总高度等于右边中文标题的高度（两者视觉上平衡）"。
+   *  ⚠ `tip` 只说"文案在哪一类文件里"，**不许写 `js/modules/<id>.js`**：有 2 个模块文件名 ≠ 注册 id
+   *  （见 css/style.css 的 `.topic-id` 注释），写死就是假文案（§3.8-6）。 */
+  _headerHtml(title, hit, wip, id, tip) {
     const book = hit ? hit.book : null;
+    const esc = RC408.util.esc;
+    const idChip = id
+      ? `<code class="topic-id" title="${esc(tip || ('本条目 id：' + id))}">${esc(id)}</code>`
+      : '';
     const badge = wip === 'legacy'
       ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">📕 考纲外（已删除）</span>`
       : wip === 'theory'
@@ -321,12 +336,17 @@ const Runner = {
         : wip
           ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">🚧 敬请期待</span>`
           : `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">✓ 可交互</span>`;
+    /* 书签徽标：底色/字色取自各书自己的 accent（只能内联），字号与内边距走 `.topic-book` 纯 CSS */
     const bookChip = book
-      ? `<span class="text-xs font-bold px-2.5 py-1 rounded-md" style="background:${book.accent}1a;color:${book.accent}">${book.icon} ${book.name}</span>`
+      ? `<span class="topic-book" style="background:${book.accent}1a;color:${book.accent}">${esc(book.icon + ' ' + book.name)}</span>`
+      : '';
+    /* 书签 + id 竖排一组；两者都没有时不留空盒子（否则 flex 的 gap 会多出一段空白） */
+    const stack = (bookChip || idChip)
+      ? `<div class="topic-badges">${bookChip}${idChip}</div>`
       : '';
     return `<div class="flex flex-wrap items-center gap-3">
-      ${bookChip}
-      <h2 class="text-xl md:text-2xl font-extrabold text-slate-800">${RC408.util.esc(title)}</h2>
+      ${stack}
+      <h2 class="text-xl md:text-2xl font-extrabold text-slate-800">${esc(title)}</h2>
       ${badge}
     </div>`;
   },
