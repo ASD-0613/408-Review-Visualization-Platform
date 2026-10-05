@@ -71,7 +71,9 @@ whenToUse: 用户要求在该仓库里新增/修改模块、改 theory 文案、
   收尾只发 CDP **`Browser.close`**；起之前**先探端口**，已有响应就复用。另：**Chrome 与 Edge 同为 Chromium、
   CDP 同一套**，harness 按序探测即可（详见 handover `§3.5-10`「窗24 改写」）。
 - 若报 `no sandbox backend is usable on this host`（纯文档命令也会中招）：**同一条命令原样提权重试**，命令本身不改。
-- 本机**无外网**：Tailwind / KaTeX CDN 一律加载失败；浏览器实测走 `file://` + harness 生成的离线页面。
+- **本机浏览器**加载 `cdn.tailwindcss.com` 会报 `ERR_CERT_COMMON_NAME_INVALID`（证书被中间层替换，
+  **不是"没网"**——同一时刻 jsdelivr 的 KaTeX 正常加载）；Tailwind 已有**仓库内兜底**（`js/vendor/`，
+  窗34 加，见 handover `§1.2①`），但 harness 仍走 `file://` + 自建离线页面（要的是"没有 Tailwind"的基线）。
 - 中文文件**只能用 write / Edit 或 node 的 `fs.writeFileSync(...,'utf8')`**；不要用 PowerShell 改中文文件。
 - **本机 `pwsh` 实为 Windows PowerShell 5.1**：`.ps1` 若没有 UTF-8 BOM 会按 ANSI(GBK) 解码，
   中文字符串中段会把紧随其后的引号吃掉 → `ParserError`（窗17 实测）。**工具脚本一律写 `.js`（node 读 UTF-8，无此坑）**。
@@ -101,6 +103,9 @@ whenToUse: 用户要求在该仓库里新增/修改模块、改 theory 文案、
 3. **再跑一次** `node .dsh/skills/408-handover/scripts/gate.js`（改过 handover 必须复跑：门 1 的第 12/13/14/15 项就管它）
    + `tools/exam_index.py --stats`。
 4. **覆盖更新 `§6.5` 窗口建议**（只留最新一条，顶部 `【窗N】`）+ **`§6.6.0` 摘要表追加一行**（最新在上）。
+   ⚠ **两栏读者不同**（用户 2026-09-25 明确）：**"继续 / 换窗"是给本窗用户的决策建议**（由用户拍板是否另开窗口），
+   **"下一窗建议（做什么模块）"才是给下一个窗口的任务**——所以任务栏必须写全（别只写"换窗"）；
+   下一窗开场**只接任务栏**，不要把"换窗"当成自己要执行的动作。
 5. 告诉用户"换窗怎么做"：本机有本 skill，**新窗直接说要做什么即可**；若模型没自动加载，让用户补一句
    `先加载 skill 408-handover 再开工`；不支持 skill 的环境才贴 `§7` 的最小提示词。
 6. 临时文件按**显式清单**清理（`node tmp_tmp_audit.js` 看"引用 0 次"），留档的别删。
