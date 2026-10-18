@@ -6,10 +6,18 @@
  *   为网站做一个**题目 → 模块**的索引：点某道题对应的方块，就跳到演示该考点的那一个（几个）模块。
  *   入口是一个**新页签，放在「数据结构」左边**；每次打开网站仍默认显示数据结构的第一个模块。
  *
- * 数据来自两处（都不新造事实）：
+ * 数据来自三处（都不新造事实）：
  *   ① `js/exam-index-data.js`（生成物）：每年卷面出现过哪些题号 —— 见 `tmp_t41_gen.js`；
  *   ② `js/exam-history.js`（唯一事实源）：每道题**被哪些条目登记过** ⟹ 这就是"点它跳去哪"的映射。
  *      同一道题被 2 个以上条目登记时（实测 72 处）**不替用户选**，弹一个小浮层让他挑。
+ *   ③ **`js/app.js` 里「建设中」条目的 `qs` 字段（★ 窗45 新增）**：那批条目只有 `plan` 文本、
+ *      按约定**不登记 exam-history**（登记会让火苗池子与名单全变），于是它们的题格此前点不到任何东西
+ *      （窗44 盘点：24 格"零登记"）。`qs: ['2017-30', …]` 就是让它们**自己声明"这个题位归我"**，本页认它、
+ *      链接到该条目的占位页（用户点开能看"建设中 + 计划"），**不动 exam-history ⟹ 不动火苗**。
+ *      ⚠ 两条不变量（由 `tmp_t44_index_gap.js check` 机器把关）：
+ *        ① `qs` 的题号必须真的在本年卷面（出现在 `examIndex` 的 `q` 里）；
+ *        ② 同一个题号**不许**既在 `qs` 里、又被 `exam-history` 登记（两个真源打架要先裁定）。
+ *      顺序固定：**先 exam-history（唯一事实源）、后 qs**。
  *
  * 与平台既有语言的对应关系（**不新造一套配色**）：
  *   · 蓝 = 选择题、红 = 大题 —— 与 `framework.js` 的「历年考察分布条」(`.ex-sel` / `.ex-big`) 同色系；
@@ -85,13 +93,38 @@
       });
     });
 
+    /* ①b **「建设中」条目自报的题位**（`qs`，窗45 新增；见文件头 ③）。
+       放在 exam-history 之后 ⟹ 一格同时有两类来源时，事实源排前面（判据禁止这种重叠，这里只是兜底）。 */
+    let qsCells = 0;
+    (books || []).forEach(b => (b.chapters || []).forEach(c => (c.topics || []).forEach(t => {
+      const qs = Array.isArray(t.qs) ? t.qs : null;
+      if (!qs) return;
+      qs.forEach(s => {
+        const m = /^(\d{4})-(\d{1,2})$/.exec(String(s).trim());
+        if (!m) return;                       // 非 'YYYY-N' 写法一律不认（判据会报红）
+        const key = +m[1] + '-' + m[2];
+        if (!qmap.has(key)) qmap.set(key, []);
+        const list = qmap.get(key);
+        if (list.some(x => x.id === t.id)) return;
+        list.push({
+          id: t.id,
+          label: t.label,
+          status: t.status || 'unknown',
+          bookId: b.id,
+          bookName: b.name || b.id,
+          kind: +m[2] >= 41 ? '大' : '选',
+          fromQs: true,
+        });
+      });
+    })));
+
     /* ② 逐行（年）构建格子 */
     /* 现行考纲已删的题（生成物里的 RC408.examIndexLegacy）——页面画红 ×（用户 2026-10-05 要求），仍可点击 */
     const legacySet = new Set((RC408.examIndexLegacy || []).map(String));
     const legacyWhy = RC408.examIndexLegacyWhy || {};
     const rows = [];
     const years = [];
-    let total = 0, mapped = 0, empty = 0, unknownSubj = 0, multi = 0, legacy = 0;
+    let total = 0, mapped = 0, empty = 0, unknownSubj = 0, multi = 0, legacy = 0, wipOnly = 0;
     (D || []).forEach(raw => {
       const present = new Set(raw.q || []);
       const miss = new Set(raw.miss || []);
@@ -118,6 +151,8 @@
           };
           if (mods.length) { mapped++; rowMapped++; }
           else empty++;
+          /* 「建设中」格：全部来源都来自 `qs`（没有任何 exam-history 登记）—— 单独计数给摘要条用 */
+          if (mods.length && mods.every(m => m.fromQs)) wipOnly++;
           if (mods.length > 1) multi++;
           total++;
           list.push(cell);
@@ -131,7 +166,7 @@
 
     return {
       groups: GROUPS, years, rows,
-      stats: { total, mapped, empty, multi, unknownSubj, legacy, years: years.length },
+      stats: { total, mapped, empty, multi, unknownSubj, legacy, wipOnly, years: years.length },
       qmapSize: qmap.size,
     };
   }
@@ -164,22 +199,28 @@
         const subjTxt = c.exists ? SUBJ_NAME(c.subj) : '卷面未记录该题号';
         const kindTxt = c.subj === '?' ? '' : (c.n >= 41 ? '大题' : '选择题');
         let tip = c.y + ' 年 第 ' + c.n + ' 题 · ' + subjTxt + (kindTxt ? ' · ' + kindTxt : '');
-        if (c.legacy) tip += '\n⛔ 现行考纲已删（' + (c.legacyWhy || '已移出考查范围') + '）';
-        if (mods.length === 1) tip += '\n演示模块：' + primary.label + '（点击跳转）';
+        if (c.legacy) tip += '\n⛔ 考纲外（' + (c.legacyWhy || '已移出考查范围') + '）';
+        /* ⚠ 窗45：「建设中」条目要**明说**自己还没做，别让用户以为点开就有动画 */
+        const isWip = mods.length === 1 && primary && primary.fromQs;
+        if (mods.length === 1) tip += isWip
+          ? '\n⏳ 建设中条目：' + primary.label + '（点击看建设计划）'
+          : '\n演示模块：' + primary.label + '（点击跳转）';
         else if (mods.length > 1) tip += '\n共 ' + mods.length + ' 个相关模块（点击选择）\n' + mods.map(m => '· ' + m.label).join('\n');
-        else tip += '\n' + (c.legacy ? '（考纲已删，平台按约定不给模块；点击看说明）'
+        else tip += '\n' + (c.legacy ? '（考纲外，平台按约定不给模块；点击看说明）'
           : c.exists ? '（暂无对应模块）' : '（该年卷面未记录此题，缓存无文本层）');
         const cls = ['ix-cell'];
         cls.push(c.n >= 41 ? 'ix-big' : 'ix-sel');
         if (c.subj !== '?') cls.push('ix-s-' + c.subj.toLowerCase());   // 主体色按**科目**（大题那 7 列要靠它区分）
         if (!mods.length) cls.push('ix-nomod');
+        /* 「建设中」（来源全是 `qs`）：加一个独立的视觉标识 —— 用户要能一眼看出"点开只有计划" */
+        if (mods.length && mods.every(m => m.fromQs)) cls.push('ix-wip');
         if (!c.exists && !mods.length) cls.push('ix-void');
         if (mods.length > 1) cls.push('ix-multi');                      // 多条目：加一条底部粗线（不压题号）
         if (c.legacy) cls.push('ix-legacy');                            // 考纲外：画红 ×（仍可点）
         return '<td class="' + cls.join(' ') + '" data-y="' + c.y + '" data-n="' + c.n + '"'
           + ' title="' + esc(tip) + '" tabindex="0" role="button"'
           + ' aria-label="' + esc(c.y + ' 年第 ' + c.n + ' 题'
-            + (c.legacy ? '（现行考纲已删）' : '') + (mods.length > 1 ? '（' + mods.length + ' 个模块）' : '')) + '">'
+            + (c.legacy ? '（考纲外）' : '') + (mods.length > 1 ? '（' + mods.length + ' 个模块）' : '')) + '">'
           + '<span class="ix-num">' + c.n + '</span>'
           + (c.legacy ? LEGACY_X : '')
           + '</td>';
@@ -208,6 +249,7 @@
       + '<div class="ix-legend">'
       + '<span class="ix-lg"><i class="ix-sw ix-sel"></i>选择题（蓝底）</span>'
       + '<span class="ix-lg"><i class="ix-sw ix-big"></i>大题（彩色底 = 该题的科目）</span>'
+      + '<span class="ix-lg"><i class="ix-sw ix-wip"></i>⏳ 建设中（点开看计划）</span>'
       + '<span class="ix-lg"><i class="ix-sw ix-legacy"></i>' + X_ICON_SMALL + '考纲外</span>'
       + '<span class="ix-lg"><i class="ix-sw ix-nomod"></i>暂无模块</span>'
       + '<span class="ix-lg"><i class="ix-sw ix-void"></i>当年未记录</span>'
@@ -215,7 +257,8 @@
       + '</div>'
       + '<div class="ix-stats">'
       + '<span class="ix-stat"><b>' + stat.total + '</b> 个题位</span>'
-      + '<span class="ix-stat"><b>' + stat.mapped + '</b> 个已接模块</span>'
+      + '<span class="ix-stat"><b>' + stat.mapped + '</b> 个已有条目</span>'
+      + '<span class="ix-stat"><b>' + stat.wipOnly + '</b> 个建设中</span>'
       + '<span class="ix-stat"><b>' + stat.empty + '</b> 个暂无模块</span>'
       + '<span class="ix-stat"><b>' + stat.legacy + '</b> 个考纲外</span>'
       + '<span class="ix-stat"><b>' + stat.multi + '</b> 个多条目</span>'
@@ -269,7 +312,8 @@
       + mods.length + ' 个条目，选一个跳转：</div>'
       + mods.map(m => '<button class="ix-pop-i" data-topic="' + RC408.util.esc(m.id) + '">'
         + '<span class="ix-pop-t">' + RC408.util.esc(m.label) + '</span>'
-        + '<span class="ix-pop-b">' + RC408.util.esc(m.bookName) + (m.status === 'theory' ? ' · 纯理论卡' : '') + '</span>'
+        + '<span class="ix-pop-b">' + RC408.util.esc(m.bookName)
+        + (m.fromQs ? ' · ⏳ 建设中' : (m.status === 'theory' ? ' · 纯理论卡' : '')) + '</span>'
         + '</button>').join('');
     document.body.appendChild(pop);
     const r = cellEl.getBoundingClientRect();
@@ -338,7 +382,7 @@
         pop.innerHTML = '<div class="ix-pop-h">' + y + ' 年 第 ' + n + ' 题'
           + (lg ? ' · <span class="ix-pop-bad">⛔ 考纲外</span>' : '') + '</div>'
           + '<div class="ix-pop-empty">' + RC408.util.esc(lg
-            ? ('这道题考的知识点已从现行考纲删除（' + (c.legacyWhy || '已移出考查范围') + '）⟹ 平台按约定不再为它建模块。做旧真题时了解即可，不必按重点复习。')
+            ? ('这道题已不再作为考情依据（' + (c.legacyWhy || '已移出考查范围') + '）⟹ 平台按约定不再为它建模块。做旧真题时了解即可，不必按重点复习。')
             : (c && c.exists ? '这道题在卷面上有，但还没有任何模块登记它 ⟹ 暂无跳转目标。' : '该年卷面未记录这个题号（真题卷 / 解析卷缺文本层）。')) + '</div>';
         document.body.appendChild(pop);
         const r = cell.getBoundingClientRect();

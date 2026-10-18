@@ -239,6 +239,7 @@ const Runner = {
     /* ---- 纯理论考点：完全无法（或无必要）可视化的知识点，渲染为速记卡 ---- */
     const theoryOnly = hit && hit.topic.status === 'theory' && hit.topic.note;
     if (theoryOnly) {
+      this.dom.theoryBody.classList.remove('theory-plain');   // 窗51：纯理论卡参与理论区段落序号
       this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, 'theory', topicId,
         '本条目 id（纯理论速记卡：文案写在 js/app.js 的 note 里）');
       this.dom.theoryBody.innerHTML = (RC408.examStripHtml(this.def || { id: topicId }) || '') +
@@ -260,6 +261,7 @@ const Runner = {
       /* ---- 未实现条目：普通的是"敬请期待"占位页；
               带 legacy 字段的是"考纲外"考点（真题曾考、现行考纲已删），用作旧真题的对照标注 ---- */
       const legacy = hit && hit.topic.legacy;
+      this.dom.theoryBody.classList.add('theory-plain');   // 窗51：考纲外/建设中页不参与段落序号（用户 2026-10-11 要求）
       this.dom.topicHeader.innerHTML = this._headerHtml(label, hit, legacy ? 'legacy' : true, topicId,
         legacy ? '本条目 id（考纲外条目：在 js/app.js 目录树里）' : '本条目 id（建设中：模块文件待建）');
       this.dom.theoryBody.innerHTML = RC408.md(legacy
@@ -293,6 +295,7 @@ const Runner = {
     }
 
     /* ---- 正式模块 ---- */
+    this.dom.theoryBody.classList.remove('theory-plain');   // 窗51：从考纲外/建设中页切回时恢复段落序号
     this.dom.topicHeader.innerHTML = this._headerHtml(this.def.title, hit, false, topicId,
       '本条目 id（模块注册 id：与 js/app.js 条目、js/exam-history.js 的键同名）');
     // 理论区 = 历年考察分布条（如有数据） + Markdown 正文
@@ -1055,20 +1058,24 @@ RC408.examStripHtml = function (def) {
   const has = RC408.examHistory && Object.prototype.hasOwnProperty.call(RC408.examHistory, def.id);
   if (!has) return '';                       // 没登记的条目 = 不显示（建设中 / 未覆盖）
   const data = (RC408.examHistory[def.id] || []).filter(e => e && e.y >= 2009 && e.y <= 2026);
+  /* ★ 窗55 修：`exam-history` 允许**同一年登记多条**（真实例子：`coa-baseconv` 的 2018-12 选 + 2018-45 大）。
+     旧写法 `map[e.y] = e` 是"后写覆盖先写"⟹ ① 那一格只显示后一条的题号；② 下方 `考过 N 年` 用的是
+     `data.length`（**条目数**），会把 10 年说成 11 年——与 README / handover 反复钉死的
+     「N/18 年 = **年份去重数**，加一题 ≠ 加一年」（§6.2.42②）矛盾。现改为按年份归组。 */
   const map = {};
-  data.forEach(e => { map[e.y] = e; });
+  data.forEach(e => { (map[e.y] = map[e.y] || []).push(e); });
   const years = [];
   for (let y = 2009; y <= 2026; y++) years.push(y);
 
   /* n 可为空串：该题号在卷面无文本层时无法记录，只登记年份（引擎按"年份已考"显示，不编题号） */
   const cells = years.map(y => {
-    const e = map[y];
-    if (!e) return `<div class="ex-cell ex-off" title="${y} 年未考"><div class="ex-y">${String(y).slice(2)}</div></div>`;
-    const isBig = String(e.k || '').includes('大');
-    const isBoth = String(e.k || '') === '选大';
-    const kind = isBoth ? '选择题 + 大题' : (isBig ? '大题' : '选择题');
-    const cls = isBig ? 'ex-big' : 'ex-sel';
-    const qn = String(e.n == null ? '' : e.n).trim();
+    const list = map[y];
+    if (!list) return `<div class="ex-cell ex-off" title="${y} 年未考"><div class="ex-y">${String(y).slice(2)}</div></div>`;
+    const hasSel = list.some(e => String(e.k || '').includes('选'));
+    const hasBig = list.some(e => String(e.k || '').includes('大'));
+    const kind = (hasSel && hasBig) ? '选择题 + 大题' : (hasBig ? '大题' : '选择题');
+    const cls = hasBig ? 'ex-big' : 'ex-sel';        /* 与既有口径一致：k='选大' 也走 ex-big */
+    const qn = list.map(e => String(e.n == null ? '' : e.n).trim()).filter(Boolean).join('·');
     const title = qn ? `${y} 年 第 ${qn} 题 · ${kind}` : `${y} 年 · ${kind}（该年卷面无文本层，题号未记录）`;
     return `<div class="ex-cell ${cls}" title="${title}">
       <div class="ex-y">${String(y).slice(2)}</div>
@@ -1080,11 +1087,12 @@ RC408.examStripHtml = function (def) {
     const qn = String(e.n == null ? '' : e.n).trim();
     return a + (qn ? qn.split('·').length : 1);
   }, 0);
+  const yearCount = Object.keys(map).length;          /* ★ 窗55：年份去重，不数条目 */
 
   return `<div class="exam-strip">
     <div class="exam-strip-head">
       <span class="exam-strip-title">历年考察分布（2009–2026）</span>
-      <span class="exam-strip-sub">考过 <b>${data.length}</b> 年 · 共 <b>${questionCount}</b> 题</span>
+      <span class="exam-strip-sub">考过 <b>${yearCount}</b> 年 · 共 <b>${questionCount}</b> 题</span>
       <span class="exam-strip-legend">
         <i class="ex-dot ex-sel"></i>选择题
         <i class="ex-dot ex-big"></i>大题

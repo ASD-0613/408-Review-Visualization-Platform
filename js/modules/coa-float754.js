@@ -6,7 +6,9 @@
  * 2018-14、2020-13、2021-14、2022-14、2023-14、2024-14、2025-13、2026-14），固定题型两种：
  * "十六进制机器数 → 求真值" 与 "十进制 → 机器数"；2023 年考到**非规格化数**、**2026 年考到"就近舍入(取偶)"求 12.1 的机器数**——本模块均覆盖。
  * （**窗12** 勘误：旧行的年份数与年份表都不全、且把某年的精度题错记成 754 题。
- *   **窗20** 勘误：2009-13 按 §2.0 口径②改归 coa-floatadd，见 §6.2.18。**窗42** 已按现算重写本行。）
+ *   **窗20** 勘误：2009-13 当年按 §2.0 口径②改归 coa-floatadd，见 §6.2.18；**窗57 又改判为"考纲外"、
+ *   不再登记到任何模块**（该题用自定补码阶码 / 尾数格式、非 IEEE 754，已记入 `examIndexLegacy`）。
+ *   **窗42** 已按现算重写本行。）
  *
  * 快照设计（decode 求值方向）：
  *   { step:'init'|'bits'|'fields'|'special'|'result',
@@ -34,6 +36,7 @@ RC408.registerModule({
 > **记住什么**：**机器数 ↔ 真值的互求套路**（切三段 → 阶码减偏置 → 尾数前补 "1."）+ 四类特殊值的判据。
 
 ## 格式与公式
+
 | 类型 | 总位数 | 符号 S | 阶码 E | 尾数 M | 偏置 |
 | --- | --- | --- | --- | --- | --- |
 | 单精度 float | 32 | 1 | 8 | 23 | 127 |
@@ -42,6 +45,7 @@ RC408.registerModule({
 **规格化数**：\\(N = (-1)^S \\times 1.M \\times 2^{E-B}\\)（B 为偏置；隐含最高位 "1." 不占存储，白赚一位精度）
 
 ## 四类特殊值（由 E 与 M 联合判定）
+
 | E 字段 | M | 含义 |
 | --- | --- | --- |
 | 全 0 | 全 0 | ±0 |
@@ -51,12 +55,26 @@ RC408.registerModule({
 | 1 ~ 254 | 任意 | 规格化数（用上面的正常公式） |
 
 ## 手算套路（机器数 → 真值）
+
 1. 展开二进制，切成 **1 / 8 / 23** 三段（单精度）；
 2. E 字段按**无符号**读出，**减 127** 得真实指数；
 3. 尾数字段前补 "1." 得 1.M（非规格化数补 "0."、指数固定 1 − B）；
 4. 代入公式，**别忘符号位在最前面**。
 
+## 范围由阶码决定，精度由尾数决定
+
+| 项 | 由谁决定 | 单精度的实际情况 |
+| --- | --- | --- |
+| 表示范围 | **阶码位数**（8 位、偏置 127） | 约 \\(\\pm3.4\\times10^{38}\\)；最小非零约 \\(1.4\\times10^{-45}\\) |
+| 有效位数（精度） | **尾数位数**（1 位隐含 + 23 位 = 24 位有效） | 只能精确表示 24 位以内的整数 |
+| 相邻两数的间隔 | 当前阶码 E 下为 \\(2^{E-23}\\) | 阶码越大，间隔越大、可表示的数越"稀" |
+
+- **范围内的整数不是都能表示**：\\(2^{24}\\) 以内的整数全能精确表示；\\(2^{40}-1\\) 需要 40 个有效位，而尾数只有 23 位（加隐含位才 24 位）⟹ 只能近似（2024-14 问的正是这一条）；
+- **范围大 ≠ 精度高**：浮点拿"定点尾数 + 浮动阶码"换来大范围，代价是同样位宽下有效位比定点少；
+- 判题两句口诀：问"能不能表示"看**有效位数够不够**；问"是否溢出"看**阶码是否越界**。
+
 ## 考点提醒（易错点）
+
 1. **非规格化数**（E 全 0、M 非 0）：**隐含位消失、指数固定为 1 − 偏置**，是失分重灾区（2023-14 的 8020 0000H）；
 2. 三段顺序别记错：符号 → 阶码 → 尾数；
 3. **精度**：0.1、1.2 这类十进制小数的二进制是无限循环，只能**就近舍入（取偶）**，
@@ -141,7 +159,7 @@ RC408.registerModule({
       });
       snaps.push({
         step: 'bits', kind: cls.kind, bits, hex: model.hex, sign, expBits, fracBits, E, mant: cls.mant, expVal: E - bias, value: cls.value, total, ebits, fbits, bias,
-        log: `展开 ${total} 位：${bits.slice(0, 1)} | ${expBits} | ${fracBits.slice(0, 12)}…（🔴 符号 1 位 | 🟡 阶码 ${ebits} 位 | 🟢 尾数 ${fbits} 位）`,
+        log: `展开 ${total} 位：${bits.slice(0, 1)} | ${expBits} | ${fracBits.slice(0, 12)}…（🔴 符号 1 位 | 🟡 阶码 ${ebits} 位 | 🔵 尾数 ${fbits} 位）`,
         logType: 'info', desc: '按 1 / 阶码 / 尾数 切分三段',
       });
       snaps.push({
@@ -227,7 +245,16 @@ RC408.registerModule({
     const cellW = s.total > 32 ? 15 : 27;
     const cellH = s.total > 32 ? 30 : 36;
 
-    /* 三段位格子 */
+    /* 三段位格子。
+       ⚠ **配色必须与下面那条图例 + 统计卡一致**（用户 2026-10-12 报："颜色标注错误"）：
+         符号 = `.bit-sub`（红 #e11d48，同 `text-rose-600`）｜阶码 = `.bit-tag`（琥珀 #d97706，同 `text-amber-600`）
+         ｜尾数 = `.bit-off`（蓝 #2563eb，同 `text-blue-600`）。
+       第一版把三段分别写成 `bit-tag` / `bit-sub` / `bit-host`（照抄子网划分的三段），于是
+       **符号位成了琥珀、阶码成了红**，与图例、与统计卡、与段标题里的 🔴🟡🟢 全都对不上。
+       ⚠ **两轮才修完**（用户 2026-10-12 报了两次）：第一轮只换了类名与图例色值，
+       **段标题里的 🟢（尾数写成绿）漏了** —— 同一个"五处对齐"清单的第 ⑤ 项，见 §6.2.54b② 经验 0。
+       ⚠ 教训：`.bit-sub` / `.bit-net` 这些类名带的是**子网划分的语义**（红 = 子网号、蓝 = 主机号），
+       跨模块复用时**只看颜色、别看名字**。 */
     const seg = (from, to, cls) => Array.from({ length: to - from }, (_, i) => {
       const p = from + i;
       return `<div class="bit-cell ${cls}" style="width:${cellW}px;height:${cellH}px;font-size:${cellW < 20 ? 10 : 13}px;border-radius:4px" title="第 ${p + 1} 位">${s.bits ? s.bits[p] : '·'}</div>`;
@@ -235,7 +262,7 @@ RC408.registerModule({
     const bitsHtml = s.bits ? `
       <div class="overflow-x-auto">
         <div class="flex gap-0.5 justify-center" style="min-width:${s.total * (cellW + 2)}px">
-          ${seg(0, 1, 'bit-tag')}${seg(1, 1 + s.ebits, 'bit-sub')}${seg(1 + s.ebits, s.total, 'bit-host')}
+          ${seg(0, 1, 'bit-sub')}${seg(1, 1 + s.ebits, 'bit-tag')}${seg(1 + s.ebits, s.total, 'bit-off')}
         </div>
         <div class="flex justify-center gap-6 mt-2 text-[11px] font-bold flex-wrap">
           <span class="text-rose-600">符号 S = ${s.sign}</span>
@@ -275,7 +302,7 @@ RC408.registerModule({
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${stats}</div>
 
         <div class="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-4">
-          ${RC408.ui.sectionTitle(`${s.total} 位机器数（🔴 符号 1 位 ｜ 🟡 阶码 ${s.ebits} 位 ｜ 🟢 尾数 ${s.fbits} 位）`)}
+          ${RC408.ui.sectionTitle(`${s.total} 位机器数（🔴 符号 1 位 ｜ 🟡 阶码 ${s.ebits} 位 ｜ 🔵 尾数 ${s.fbits} 位）`)}
           ${bitsHtml}
         </div>
 
@@ -292,7 +319,7 @@ RC408.registerModule({
 
         <div class="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-500 border-t border-slate-100 pt-3">
           ${RC408.ui.legend('#e11d48', '符号位 S')}
-          ${RC408.ui.legend('#e11d48', '阶码字段 E（偏置 ' + s.bias + '）')}
+          ${RC408.ui.legend('#d97706', '阶码字段 E（偏置 ' + s.bias + '）')}
           ${RC408.ui.legend('#2563eb', '尾数字段 M')}
         </div>
       </div>`;

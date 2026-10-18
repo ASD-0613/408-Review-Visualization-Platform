@@ -345,6 +345,15 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 }
 .md-body h2:first-child { margin-top: 0; }
 .md-body h3 { font-size: 14px; font-weight: 700; color: #334155; margin: .9em 0 .4em; }
+/* 窗51：理论区段落汉字序号（全量：交互模块 / 纯理论卡 / 占位页共用此容器；## → h3，framework.js:110）。
+   序号与标题文字同用 indigo-500 #6366f1（用户指定）。CSS 计数器 + ::before 生成、不进 DOM 文本
+   ⟹ 标注的 {块下标, 字符区间}（rc408.anno.v1）、KaTeX 产物与 doc_check 理论体检零影响 */
+#theory-body { counter-reset: th-no; }
+#theory-body > h3 { counter-increment: th-no; color: #6366f1; }
+#theory-body > h3::before { content: counter(th-no, cjk-ideographic) ". "; }
+/* 占位页（建设中 / 考纲外）不参与：无序号、标题保持原色（用户 2026-10-11 要求考纲外不加序号） */
+#theory-body.theory-plain > h3 { counter-increment: none; color: #334155; }
+#theory-body.theory-plain > h3::before { content: none; }
 .md-body p { margin: .45em 0; }
 .md-body ul, .md-body ol { padding-left: 1.4em; margin: .4em 0; }
 .md-body ul { list-style: disc; }
@@ -536,6 +545,17 @@ textarea.fld { font-family: Consolas, ui-monospace, monospace; font-size: 13px; 
 .ix-cell.ix-big.ix-s-net { background: #ffe4e6; color: #9f1239; }
 .ix-cell.ix-nomod { background: #f8fafc; border: 1px dashed #cbd5e1; }
 .ix-cell.ix-void { background: #f8fafc; border: 1px dashed #e2e8f0; color: #cbd5e1; }
+/* 「建设中」条目自报的题位（窗45 新增；来源 = app.js 的 `qs` 字段，见 index-page.js 文件头）：
+   仍是**可点的实心格**（点开是"建设中 + 建设计划"占位页），但左上角加一个橙色小角标、
+   底色比正式模块淡一档 —— 让用户一眼分清"点开有动画"与"点开只有计划"。 */
+.ix-cell.ix-wip { background: #fffbeb; color: #92400e; box-shadow: inset 0 0 0 1px #fde68a; }
+.ix-cell.ix-wip.ix-big.ix-s-ds, .ix-cell.ix-wip.ix-big.ix-s-coa,
+.ix-cell.ix-wip.ix-big.ix-s-os, .ix-cell.ix-wip.ix-big.ix-s-net { background: #fffbeb; color: #92400e; }
+.ix-cell.ix-wip::after { content: ''; position: absolute; right: 1px; top: 1px; width: 4px; height: 4px;
+  border-radius: 50%; background: #f59e0b; }
+.ix-lg .ix-sw.ix-wip { background: #fffbeb; box-shadow: inset 0 0 0 1px #fde68a; position: relative; }
+.ix-lg .ix-sw.ix-wip::after { content: ''; position: absolute; right: 1px; top: 1px; width: 4px; height: 4px;
+  border-radius: 50%; background: #f59e0b; }
 /* 多条目（同一道题被 ≥2 个条目登记）：加一条**底部粗线**而不是角标 —— 格子只有 25px 宽，
    右上角写数字会压住题号（窗41 目视实测）。数量写在 title 与浮层标题里。 */
 .ix-cell.ix-multi { box-shadow: inset 0 -3px 0 0 #6366f1; }
