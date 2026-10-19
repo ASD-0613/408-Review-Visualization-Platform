@@ -21,3 +21,11 @@ tmp_*
 # 真题考情缓存（tools/exam_index.py 生成：全文 txt + 关键词索引 + 扫描页 PNG）
 # 含解析原文，属版权内容，不入公开仓库；本地随时可用 --build 重建
 考情缓存/
+
+# 内部开发台账与窗口规程（2026-10-19 用户要求：默认不推送，只在本地保留）
+# handover 系列记着开发史 / 本机路径 / 逐窗流水，属于维护者内部资料；
+# .dsh/ 是窗口工作规程（skill）与门禁脚本，同样只在本地用。
+docs/handover.md
+docs/handover-*.md
+docs/tmp-index.md
+.dsh/
